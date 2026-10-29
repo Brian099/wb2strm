@@ -312,7 +312,10 @@
   }
 
   // ---------------------------------------------------------------- 运维
-  async function refreshStats() {
+  let opsActive = false;      // 是否停留在运维页（决定空闲时要不要继续轮询）
+  let lastSettled = "";       // 上一次已处理过的任务结束标记，避免重复刷新
+
+  async function loadStats() {
     let d;
     try {
       d = await api("/api/stats");
@@ -333,7 +336,6 @@
       box.appendChild(el("div", "l", l));
       row.appendChild(box);
     });
-    if (d.job) renderJob(d.job);
   }
 
   function renderJob(j) {
@@ -349,30 +351,43 @@
 
     const box = $("logbox");
     if (j.logs && j.logs.length) {
+      // 只有原本就贴在底部时才自动滚到底，避免打断向上翻日志
+      const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
       box.innerHTML = "";
       j.logs.forEach((line) => {
-        const d = el("div", /\[ERR\]|失败|error/i.test(line) ? "err" : "", line);
-        box.appendChild(d);
+        box.appendChild(el("div", /\[ERR\]|失败|error/i.test(line) ? "err" : "", line));
       });
-      box.scrollTop = box.scrollHeight;
+      if (atBottom) box.scrollTop = box.scrollHeight;
     }
 
-    const running = !!j.running;
-    ["btnList", "btnDetail", "btnStrm"].forEach((id) => ($(id).disabled = running));
-    if (running) {
-      clearTimeout(jobTimer);
-      jobTimer = setTimeout(pollJob, 2000);
-    }
+    ["btnList", "btnDetail", "btnStrm"].forEach((id) => ($(id).disabled = !!j.running));
+  }
+
+  // 任务刚结束时刷新分类计数和列表（新片才会出现在浏览页）
+  function onJobSettled(j) {
+    if (!j.finished) return;
+    const key = (j.kind || "") + "|" + j.finished;
+    if (key === lastSettled) return;
+    lastSettled = key;
+    loadTypes().then(loadList);
   }
 
   async function pollJob() {
+    clearTimeout(jobTimer);
+    let d;
     try {
-      const d = await api("/api/job");
-      renderJob(d.job);
-      if (!d.job.running) refreshStats();
+      d = await api("/api/job");
     } catch (e) {
-      clearTimeout(jobTimer);
       jobTimer = setTimeout(pollJob, 4000);
+      return;
+    }
+    renderJob(d.job);
+    await loadStats();                       // 运行中统计数字也实时增长
+    if (d.job.running) {
+      jobTimer = setTimeout(pollJob, 2000);
+    } else {
+      onJobSettled(d.job);
+      if (opsActive) jobTimer = setTimeout(pollJob, 10000);   // 空闲时轻量轮询，容器/命令行改动也能看到
     }
   }
 
@@ -396,7 +411,9 @@
         const tab = b.dataset.tab;
         $("browse").style.display = tab === "browse" ? "" : "none";
         $("ops").style.display = tab === "ops" ? "" : "none";
-        if (tab === "ops") refreshStats();
+        opsActive = tab === "ops";
+        if (opsActive) pollJob();
+        else clearTimeout(jobTimer);
       };
     });
 

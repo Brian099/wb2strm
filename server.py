@@ -237,6 +237,9 @@ def _guard():
 def _cors(resp):
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Headers"] = "Range, X-Token"
+    # 统计/任务接口必须实时，禁止浏览器缓存
+    if request.path.startswith("/api/") or request.path == "/health":
+        resp.headers["Cache-Control"] = "no-store, max-age=0"
     return resp
 
 
