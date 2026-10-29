@@ -82,13 +82,36 @@ python server.py
 python strm.py --nfo --images
 ```
 
-## 使用已发布的镜像
+## Docker 部署（拉取已发布镜像）
 
 镜像发布在 Docker Hub：**[brian9909/wb2strm](https://hub.docker.com/r/brian9909/wb2strm)**，同时提供 `linux/amd64` 与 `linux/arm64`（群晖/威联通 ARM 机型可直接用）。
 
-```bash
-docker pull brian9909/wb2strm:latest
+`docker-compose.yml` 里默认就是 `image: brian9909/wb2strm:latest`，**不需要本地构建**。
 
+```bash
+cd 金牌系统
+
+# 1) 改 docker-compose.yml 里的 JP_PUBLIC_BASE（改成播放器能访问到的局域网 IP）
+
+# 2) 拉取并启动
+docker compose pull
+docker compose up -d
+
+# 3) 看日志
+docker compose logs -f
+```
+
+打开 `http://<宿主机IP>:8989/` 即可。
+
+**更新到最新版**
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+**不想用 compose 也可以直接 run**
+
+```bash
 docker run -d --name jinpai \
   --restart unless-stopped \
   -p 8989:8989 \
@@ -97,27 +120,6 @@ docker run -d --name jinpai \
   -v $PWD/strm:/app/strm \
   brian9909/wb2strm:latest
 ```
-
-或者把 `docker-compose.yml` 里的 `build: .` 换成 `image: brian9909/wb2strm:latest`，然后 `docker compose up -d`（不需要 `--build`）。
-
-## 自己构建镜像
-
-镜像基于 `python:3.12-slim`，用 waitress（8 线程）跑 WSGI，自带健康检查。
-所有配置都**直接写在 `docker-compose.yml` 里**，不需要 `.env`。
-
-```bash
-cd 金牌系统
-
-# 1) 改 docker-compose.yml 里的 JP_PUBLIC_BASE（改成播放器能访问到的局域网 IP）
-
-# 2) 构建并启动
-docker compose up -d --build
-
-# 3) 看日志
-docker compose logs -f
-```
-
-打开 `http://<宿主机IP>:8989/` 即可。
 
 **`docker-compose.yml` 里需要改的只有这一行**：
 
@@ -135,6 +137,17 @@ environment:
 | `./data` | `/app/data` | SQLite 数据库，**必须持久化** |
 | `./strm` | `/app/strm` | STRM 输出，给 Emby/Jellyfin 挂载 |
 
+## 本地构建镜像（可选）
+
+改过代码、想自己打包时，把 `docker-compose.yml` 里的 `image:` 那行注释掉、改用下面注释着的 `build: .`，然后：
+
+```bash
+docker compose up -d --build
+```
+
+镜像本身基于 `python:3.12-slim`，用 waitress（8 线程）跑 WSGI，自带健康检查。
+所有配置都**直接写在 `docker-compose.yml` 里**，不需要 `.env`。
+
 **常用命令**
 
 ```bash
@@ -144,7 +157,7 @@ docker compose exec jinpai python sync.py stats     # 查库存
 docker compose exec jinpai python strm.py --nfo --images   # 命令行导出
 docker compose restart
 docker compose down                      # 停止（数据保留在 ./data）
-docker compose up -d --build             # 更新代码后重建
+docker compose pull && docker compose up -d   # 更新镜像
 ```
 
 **注意事项**
