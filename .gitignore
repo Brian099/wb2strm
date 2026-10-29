@@ -1,0 +1,24 @@
+# 本地数据（剧集库与导出的 STRM，不入库）
+data/
+strm/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 数据库
+*.db
+*.db-wal
+*.db-shm
+
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 日志与临时文件
+*.log

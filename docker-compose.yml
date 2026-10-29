@@ -1,0 +1,31 @@
+services:
+  jinpai:
+    build: .
+    image: jinpai-media:1.0
+    container_name: jinpai
+    restart: unless-stopped
+    ports:
+      - "8989:8989"
+    environment:
+      TZ: Asia/Shanghai
+      # ★ 写进 .strm 的地址，必须改成播放器（Emby/Jellyfin/电视盒子）能访问到的地址
+      #   例：http://192.168.1.110:8989  或  http://nas.local:8989
+      JP_PUBLIC_BASE: http://192.168.1.147:8989
+      # 留空=不鉴权；非空时界面和接口都要带 ?token=xxx
+      JP_TOKEN: ""
+      # 取流缓存秒数（实测签名 46 分钟仍有效，1800 秒安全）
+      JP_CACHE_TTL: "1800"
+      JP_DEFAULT_QUALITY: "1080"
+    volumes:
+      # 数据库（剧集目录）
+      - ./data:/app/data
+      # STRM 导出目录，给 Emby / Jellyfin 挂载用
+      - ./strm:/app/strm
+    # 默认以 root 运行，方便直接写宿主机目录（NAS 上最常见的情况）。
+    # 想用非 root：先 chown -R 1000:1000 ./data ./strm，再取消下面这行注释。
+    # user: "1000:1000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

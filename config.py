@@ -1,0 +1,37 @@
+# -*- coding: utf-8 -*-
+"""全局配置。所有项都可以用环境变量覆盖，方便部署到别的机器。"""
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# ---------------- 站点 ----------------
+HOST = os.environ.get("JP_HOST", "https://www.jiabaide.cn").rstrip("/")
+APP_KEY = os.environ.get("JP_APP_KEY", "cb808529bae6b6be45ecfab29a4889bc")
+UA = os.environ.get(
+    "JP_UA",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+)
+
+# ---------------- 路径 ----------------
+DATA_DIR = os.environ.get("JP_DATA_DIR", os.path.join(BASE_DIR, "data"))
+DB_PATH = os.environ.get("JP_DB", os.path.join(DATA_DIR, "jinpai.db"))
+STRM_ROOT = os.environ.get("JP_STRM_ROOT", os.path.join(BASE_DIR, "strm"))
+
+# ---------------- 对外服务 ----------------
+# 写进 .strm 文件的地址，必须是播放器能访问到的地址（局域网就填局域网 IP）
+PUBLIC_BASE = os.environ.get("JP_PUBLIC_BASE", "http://127.0.0.1:8989").rstrip("/")
+LISTEN_HOST = os.environ.get("JP_LISTEN_HOST", "0.0.0.0")
+LISTEN_PORT = int(os.environ.get("JP_LISTEN_PORT", "8989"))
+# 访问令牌：非空时所有接口都要带 ?token=xxx 或 X-Token 头
+ACCESS_TOKEN = os.environ.get("JP_TOKEN", "")
+
+# ---------------- 取流缓存 ----------------
+# 实测同一张签名地址连续 46 分钟仍返回 200，这里缓存 30 分钟，留足余量
+PLAY_CACHE_TTL = int(os.environ.get("JP_CACHE_TTL", "1800"))
+DEFAULT_QUALITY = int(os.environ.get("JP_DEFAULT_QUALITY", "1080"))
+
+# ---------------- 同步参数 ----------------
+# 列表接口 totalCount 被 10000 截顶（ES max_result_window），超过就按年份切片
+TOTAL_CAP = 10000
+PAGE_SIZE = 30

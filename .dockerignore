@@ -1,0 +1,23 @@
+# 本地数据，不打进镜像
+data/
+strm/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 其它
+*.log
+.env
+*.db
+*.db-wal
+*.db-shm

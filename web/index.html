@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>金牌影视 · 本地库</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="logo"><i></i>金牌影视 · 本地库</div>
+  <div class="search">
+    <input id="q" type="search" placeholder="搜索片名 / 演员 / 类型…" autocomplete="off">
+  </div>
+  <nav>
+    <button data-tab="browse" class="active">浏览</button>
+    <button data-tab="ops">运维</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ==================== 浏览 ==================== -->
+  <section id="browse">
+    <div class="filters" id="chips"></div>
+    <div class="filters" id="yearbar" style="margin-top:-8px"></div>
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty" style="display:none">没有找到内容，换个关键词或分类试试</div>
+    <div class="pager" id="pager" style="display:none">
+      <button id="prev">上一页</button>
+      <span id="pageinfo"></span>
+      <button id="next">下一页</button>
+    </div>
+  </section>
+
+  <!-- ==================== 运维 ==================== -->
+  <section id="ops" style="display:none">
+    <div class="stat-row" id="stats"></div>
+
+    <div class="ops-grid">
+      <div class="panel">
+        <h3>同步目录</h3>
+        <p>抓取剧集列表入库。电影会自动按年份切片绕开 10000 条上限。</p>
+        <div class="field"><span>分类</span><input id="syncTypes" type="text" placeholder="留空=全部，或 2,88"></div>
+        <div class="field"><span>数量上限</span><input id="syncLimit" type="number" placeholder="0=不限" value="0"></div>
+        <button class="btn" id="btnList">开始同步目录</button>
+      </div>
+
+      <div class="panel">
+        <h3>同步分集</h3>
+        <p>为缺分集的剧补详情。接口不支持批量，4 并发约 2.4 小时跑完 4 万部。</p>
+        <div class="field"><span>数量上限</span><input id="detLimit" type="number" placeholder="0=不限" value="0"></div>
+        <div class="field"><span>并发</span><input id="detWorkers" type="number" value="4" min="1" max="8"></div>
+        <button class="btn" id="btnDetail">开始同步分集</button>
+      </div>
+
+      <div class="panel">
+        <h3>导出 STRM</h3>
+        <p>每集生成一个 .strm，内容是本机取流地址，供 Emby / Jellyfin / Kodi 使用。</p>
+        <div class="field">
+          <label><input type="checkbox" id="strmNfo" checked> 生成 NFO</label>
+          <label><input type="checkbox" id="strmImg" checked> 下载海报</label>
+          <label><input type="checkbox" id="strmClean"> 清理孤儿文件</label>
+        </div>
+        <div class="field"><span>分类</span><input id="strmTypes" type="text" placeholder="留空=全部"></div>
+        <button class="btn" id="btnStrm">开始导出</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3><span class="status-dot" id="jobDot"></span>任务日志</h3>
+      <p id="jobState">空闲</p>
+      <div class="logbox" id="logbox">等待任务…</div>
+    </div>
+  </section>
+</main>
+
+<!-- ==================== 详情弹窗 ==================== -->
+<div class="mask" id="detailMask">
+  <div class="modal">
+    <button class="close" data-close="detailMask">✕</button>
+    <div class="detail-head">
+      <div class="poster"><div class="ph">▶</div><img id="dPic" alt=""></div>
+      <div style="flex:1;min-width:0">
+        <h2 id="dName">—</h2>
+        <div class="tags" id="dTags"></div>
+        <div class="kv" id="dMeta"></div>
+        <div class="plot" id="dPlot"></div>
+      </div>
+    </div>
+    <div class="eps">
+      <h3 id="dEpTitle">选集</h3>
+      <div class="ep-grid" id="dEps"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 播放弹窗 ==================== -->
+<div class="mask" id="playerMask">
+  <div class="modal">
+    <div class="player-bar">
+      <span class="t" id="pTitle">播放</span>
+      <span class="q" id="pQual"></span>
+      <button class="close" style="position:static;background:transparent" data-close="playerMask">✕</button>
+    </div>
+    <video id="video" controls playsinline></video>
+    <div class="player-tip" id="pTip"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
