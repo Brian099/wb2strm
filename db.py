@@ -50,6 +50,11 @@ CREATE TABLE IF NOT EXISTS sync_state (
     key   TEXT PRIMARY KEY,
     value TEXT DEFAULT ''
 );
+
+CREATE TABLE IF NOT EXISTS setting (
+    key   TEXT PRIMARY KEY,
+    value TEXT DEFAULT ''
+);
 """
 
 
@@ -172,6 +177,23 @@ def set_state(key, value):
 def get_state(key, default=""):
     row = _conn().execute("SELECT value FROM sync_state WHERE key=?", (str(key),)).fetchone()
     return row["value"] if row else default
+
+
+# ---------------------------------------------------------------- 运行时设置
+def get_setting(key, default=""):
+    row = _conn().execute("SELECT value FROM setting WHERE key=?", (str(key),)).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(key, value):
+    c = _conn()
+    c.execute("INSERT INTO setting(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+              (str(key), str(value)))
+    c.commit()
+
+
+def all_settings():
+    return {r["key"]: r["value"] for r in _conn().execute("SELECT key,value FROM setting").fetchall()}
 
 
 # ---------------------------------------------------------------- 读取

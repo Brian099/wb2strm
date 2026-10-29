@@ -38,6 +38,22 @@
     <div class="stat-row" id="stats"></div>
 
     <div class="ops-grid">
+      <div class="panel" style="grid-column:1/-1">
+        <h3>一键更新</h3>
+        <p>依次执行：同步目录（增量） → 同步分集（新增 + 变化） → 导出 STRM。日常用这一个按钮就够。</p>
+        <div class="field">
+          <span>分类</span><input id="allTypes" type="text" placeholder="留空=全部">
+          <span>每片页数</span><input id="allPages" type="number" value="5" min="0" style="max-width:90px">
+          <span>并发</span><input id="allWorkers" type="number" value="3" min="1" max="8" style="max-width:70px">
+        </div>
+        <div class="field">
+          <label><input type="checkbox" id="allExport" checked> 完成后导出 STRM</label>
+          <label><input type="checkbox" id="allNfo" checked> NFO</label>
+          <label><input type="checkbox" id="allImages" checked> 海报</label>
+        </div>
+        <button class="btn" id="btnAll">一键更新</button>
+      </div>
+
       <div class="panel">
         <h3>同步目录</h3>
         <p>抓取剧集列表入库。电影会自动按年份切片绕开 10000 条上限。</p>
@@ -72,6 +88,27 @@
         <div class="field"><span>分类</span><input id="strmTypes" type="text" placeholder="留空=全部"></div>
         <button class="btn" id="btnStrm">开始导出</button>
       </div>
+    </div>
+
+    <div class="panel" style="grid-column:1/-1">
+      <h3>站点与地址</h3>
+      <p>保存后立即生效，不用改 compose 或重启容器。换了服务地址记得点「保存并重新导出」，否则 .strm 里还是旧地址。</p>
+      <div class="field"><span>服务地址</span><input id="setPublicBase" type="text" placeholder="http://192.168.1.110:8989"></div>
+      <div class="field"><span>源站域名</span><input id="setSourceHost" type="text" placeholder="https://example.com"></div>
+      <div class="field"><span>取流缓存(秒)</span><input id="setCacheTtl" type="number" value="1800" style="max-width:120px"></div>
+      <div class="field">
+        <label><input type="checkbox" id="setAutoEnabled"> 定时自动更新，每</label>
+        <input id="setAutoHours" type="number" value="24" min="1" style="max-width:80px">
+        <span>小时</span>
+      </div>
+      <div class="field">
+        <span>页数</span><input id="setAutoPages" type="number" value="5" min="1" style="max-width:80px">
+        <span>并发</span><input id="setAutoWorkers" type="number" value="3" min="1" max="8" style="max-width:70px">
+        <label><input type="checkbox" id="setAutoExport" checked> 自动导出 STRM</label>
+      </div>
+      <button class="btn" id="btnSaveSettings">保存</button>
+      <button class="btn ghost" id="btnSaveRegen">保存并重新导出 STRM</button>
+      <p id="nextRunInfo" style="margin:12px 0 0">定时自动更新：未开启</p>
     </div>
 
     <div class="panel">

@@ -29,6 +29,7 @@ from flask import Flask, Response, jsonify, redirect, request, send_from_directo
 
 import config
 import db
+import settings
 import strm
 import sync
 from jpapi import JPApi, JPError
@@ -38,7 +39,23 @@ urllib3.disable_warnings()
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
 
+_api_lock = threading.Lock()
+_api_host = ""
 api = JPApi()
+
+
+def get_api():
+    """源站域名可以在界面改，这里按当前设置复用/重建客户端。"""
+    global api, _api_host
+    host = settings.source_host()
+    if host != _api_host:
+        with _api_lock:
+            if host != _api_host:
+                api = JPApi(host)
+                _api_host = host
+    return api
+
+
 WEB_DIR = os.path.join(config.BASE_DIR, "web")
 
 
@@ -109,7 +126,7 @@ def resolve(vid, nid, want=0):
         hit = cache.get(key)
         if hit:
             return pick_quality(hit, want), config.PLAY_CACHE_TTL
-        urls = api.episode_urls(vid, nid)
+        urls = get_api().episode_urls(vid, nid)
         if not urls:
             raise JPError("该集暂无播放地址")
         cache.put(key, urls)
@@ -182,7 +199,7 @@ strm.LOG_SINK = job.add
 
 
 def _job_sync_list(types, limit, sleep, force=False, pages=0):
-    a = JPApi()
+    a = get_api()
     all_types = a.types()
     want = [x.strip() for x in str(types or "").split(",") if x.strip()]
     sel = [t for t in all_types if not want or t["type_id"] in want]
@@ -200,7 +217,7 @@ def _job_sync_list(types, limit, sleep, force=False, pages=0):
 
 
 def _job_sync_detail(limit, workers, sleep, changed=False):
-    a = JPApi()
+    a = get_api()
     sync.sync_detail(a, limit=int(limit or 0), workers=int(workers or 4), sleep=float(sleep or 0.1),
                      changed=bool(changed))
     s = db.stats()
@@ -209,6 +226,83 @@ def _job_sync_detail(limit, workers, sleep, changed=False):
 
 def _job_strm(nfo, images, clean, types, limit):
     strm.export(None, types or "", int(limit or 0), bool(nfo), bool(images), bool(clean))
+
+
+def _job_full(types="", pages=5, workers=3, limit=0, export=True, nfo=True, images=True, clean=False):
+    """一键全流程：① 同步目录（增量） -> ② 同步分集（新增+变化） -> ③ 导出 STRM"""
+    a = get_api()
+    all_types = a.types()
+    want = [x.strip() for x in str(types or "").split(",") if x.strip()]
+    sel = [t for t in all_types if not want or t["type_id"] in want]
+    filters = a.filters()
+    years = sync._filter_values(filters, "yearList")
+    areas = sync._filter_values(filters, "districtList")
+
+    sync.log("① 同步目录：%s，每片最多 %s 页"
+             % ("、".join("%s(%s)" % (t["type_name"], t["type_id"]) for t in sel), pages or "全部"))
+    sync.sync_list(a, sel, years, areas, limit=int(limit or 0), sleep=0.15,
+                   force=True, max_pages=int(pages or 0))
+
+    sync.log("② 同步分集：新增 + 状态变化，并发 %s" % workers)
+    sync.sync_detail(a, limit=0, workers=int(workers or 3), sleep=0.1, changed=True)
+
+    if export:
+        sync.log("③ 导出 STRM")
+        strm.export(None, types or "", 0, bool(nfo), bool(images), bool(clean))
+
+    st = db.stats()
+    sync.log("全流程完成：剧集 %d 部（%d 部有分集），分集 %d 条"
+             % (st["videos"], st["videos_with_episodes"], st["episodes"]))
+
+
+class Scheduler(threading.Thread):
+    """按设置里的间隔自动跑增量更新（list -> detail -> strm）。"""
+
+    def __init__(self):
+        super().__init__(daemon=True, name="auto-sync")
+        self._stop = threading.Event()
+
+    def stop(self):
+        self._stop.set()
+
+    def next_run_at(self):
+        if not settings.get_int("auto_enabled", 0):
+            return 0
+        last = settings.get_int("last_auto_run", 0)
+        if not last:
+            return int(time.time()) + 30
+        return last + max(1, settings.get_int("auto_hours", 24)) * 3600
+
+    def run(self):
+        self._stop.wait(10)
+        while not self._stop.is_set():
+            try:
+                self._tick()
+            except Exception as e:
+                sync.log("[自动更新] 调度异常：%r" % (e,))
+            self._stop.wait(60)
+
+    def _tick(self):
+        if not settings.get_int("auto_enabled", 0):
+            return
+        nxt = self.next_run_at()
+        if nxt and time.time() < nxt:
+            return
+        if job.running:
+            return
+        db.set_setting("last_auto_run", str(int(time.time())))
+        settings.invalidate()
+        sync.log("[自动更新] 开始（间隔 %d 小时）" % settings.get_int("auto_hours", 24))
+        job.start("自动增量更新", lambda: _job_full(
+            types=settings.get("auto_types", ""),
+            pages=settings.get_int("auto_pages", 5),
+            workers=settings.get_int("auto_workers", 3),
+            export=settings.get_int("auto_export", 1) == 1,
+            nfo=True, images=True, clean=False,
+        ))
+
+
+scheduler = Scheduler()
 
 
 # ------------------------------------------------------------------ 鉴权
@@ -371,7 +465,7 @@ def api_video(vid):
             "nid": e["nid"],
             "seq": e["seq"],
             "name": e["name"],
-            "play": "%s/play/%s/%s.m3u8" % (config.PUBLIC_BASE, vid, e["nid"]),
+            "play": "%s/play/%s/%s.m3u8" % (settings.public_base(), vid, e["nid"]),
         }
         for e in eps
     ]
@@ -391,8 +485,14 @@ def api_types():
 def api_stats():
     s = db.stats()
     s["play_cache"] = len(cache)
-    s["public_base"] = config.PUBLIC_BASE
+    s["public_base"] = settings.public_base()
+    s["source_host"] = settings.source_host()
     s["job"] = job.snapshot()
+    s["auto"] = {
+        "enabled": settings.get_int("auto_enabled", 0) == 1,
+        "hours": settings.get_int("auto_hours", 24),
+        "next_run": scheduler.next_run_at(),
+    }
     return jsonify({"ok": True, **s})
 
 
@@ -425,6 +525,57 @@ def api_job_sync():
     return jsonify({"ok": ok, "msg": msg}), (200 if ok else 409)
 
 
+@app.route("/api/job/all", methods=["POST"])
+def api_job_all():
+    d = request.get_json(silent=True) or {}
+    ok, msg = job.start("一键全流程", lambda: _job_full(
+        types=str(d.get("types") or ""),
+        pages=int(d.get("pages") or 0),
+        workers=int(d.get("workers") or 3),
+        limit=int(d.get("limit") or 0),
+        export=bool(d.get("export", True)),
+        nfo=bool(d.get("nfo", True)),
+        images=bool(d.get("images", True)),
+        clean=bool(d.get("clean", False)),
+    ))
+    return jsonify({"ok": ok, "msg": msg}), (200 if ok else 409)
+
+
+@app.route("/api/settings", methods=["GET"])
+def api_settings_get():
+    v = settings.all_values()
+    v["last_auto_run"] = settings.get("last_auto_run", "0")
+    return jsonify({"ok": True, "settings": v, "next_run": scheduler.next_run_at()})
+
+
+@app.route("/api/settings", methods=["POST"])
+def api_settings_post():
+    d = request.get_json(silent=True) or {}
+    pairs = {k: v for k, v in d.items() if k in settings._DEFAULTS}
+
+    # 规范化地址
+    for k in ("public_base", "source_host"):
+        if k in pairs:
+            u = str(pairs[k] or "").strip().rstrip("/")
+            if u and not u.startswith("http"):
+                u = "http://" + u
+            pairs[k] = u
+
+    settings.set_many(pairs)
+    cache.ttl = settings.cache_ttl()
+    global _api_host
+    _api_host = ""      # 强制下次重建接口客户端（源站域名可能变了）
+    regen = bool(d.get("regen_strm"))
+    if regen:
+        job.start("重新导出 STRM", lambda: _job_strm(True, True, False, "", 0))
+    return jsonify({
+        "ok": True,
+        "settings": settings.all_values(),
+        "regen": regen,
+        "msg": "已保存" + ("，正在重新导出 STRM" if regen else ""),
+    })
+
+
 @app.route("/api/job/strm", methods=["POST"])
 def api_job_strm():
     d = request.get_json(silent=True) or {}
@@ -435,6 +586,7 @@ def api_job_strm():
 
 if __name__ == "__main__":
     db.init_db()
+    scheduler.start()
     print("界面      http://127.0.0.1:%d/" % config.LISTEN_PORT)
     print("对外地址  %s（.strm 里写这个）" % config.PUBLIC_BASE)
     print("取流缓存  %d 秒，鉴权 %s" % (config.PLAY_CACHE_TTL, "开启" if config.ACCESS_TOKEN else "关闭"))

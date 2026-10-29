@@ -8,6 +8,7 @@ import requests
 import urllib3
 
 import config
+import settings
 
 urllib3.disable_warnings()
 
@@ -18,7 +19,7 @@ class JPError(Exception):
 
 class JPApi:
     def __init__(self, host=None, timeout=20):
-        self.host = (host or config.HOST).rstrip("/")
+        self.host = (host or settings.source_host()).rstrip("/")
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({

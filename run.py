@@ -6,11 +6,12 @@
 """
 import config
 import db
-from server import app
+from server import app, scheduler
 
 
 def main():
     db.init_db()
+    scheduler.start()
     port = config.LISTEN_PORT
     print("=" * 56, flush=True)
     print("界面      http://127.0.0.1:%d/" % port, flush=True)

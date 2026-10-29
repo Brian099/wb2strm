@@ -22,6 +22,7 @@ import urllib3
 
 import config
 import db
+import settings
 
 urllib3.disable_warnings()
 
@@ -50,7 +51,7 @@ def safe_name(name, fallback="未命名"):
 
 
 def play_url(vod_id, nid):
-    u = "%s/play/%s/%s.m3u8" % (config.PUBLIC_BASE, vod_id, nid)
+    u = "%s/play/%s/%s.m3u8" % (settings.public_base(), vod_id, nid)
     if config.ACCESS_TOKEN:
         u += "?token=" + config.ACCESS_TOKEN
     return u

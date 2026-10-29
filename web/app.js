@@ -360,7 +360,7 @@
       if (atBottom) box.scrollTop = box.scrollHeight;
     }
 
-    ["btnList", "btnDetail", "btnStrm"].forEach((id) => ($(id).disabled = !!j.running));
+    ["btnList", "btnDetail", "btnStrm", "btnAll", "btnSaveRegen"].forEach((id) => ($(id).disabled = !!j.running));
   }
 
   // 任务刚结束时刷新分类计数和列表（新片才会出现在浏览页）
@@ -391,6 +391,62 @@
     }
   }
 
+  // ---------------------------------------------------------------- 设置
+  function renderNextRun(ts) {
+    const box = $("nextRunInfo");
+    if (!ts) {
+      box.textContent = "定时自动更新：未开启";
+      return;
+    }
+    const t = new Date(ts * 1000);
+    box.textContent = "下次自动更新：" + t.toLocaleString() +
+      "（每 " + $("setAutoHours").value + " 小时，上次 " +
+      (Number(settings.last_auto_run || 0) ? new Date(Number(settings.last_auto_run) * 1000).toLocaleString() : "从未") + "）";
+  }
+
+  let settings = {};
+
+  async function loadSettings() {
+    let d;
+    try {
+      d = await api("/api/settings");
+    } catch (e) {
+      return;
+    }
+    settings = d.settings || {};
+    $("setPublicBase").value = settings.public_base || "";
+    $("setSourceHost").value = settings.source_host || "";
+    $("setCacheTtl").value = settings.cache_ttl || "1800";
+    $("setAutoEnabled").checked = settings.auto_enabled === "1";
+    $("setAutoHours").value = settings.auto_hours || "24";
+    $("setAutoPages").value = settings.auto_pages || "5";
+    $("setAutoWorkers").value = settings.auto_workers || "3";
+    $("setAutoExport").checked = settings.auto_export === "1";
+    renderNextRun(d.next_run);
+  }
+
+  async function saveSettings(regen) {
+    const body = {
+      public_base: $("setPublicBase").value.trim(),
+      source_host: $("setSourceHost").value.trim(),
+      cache_ttl: $("setCacheTtl").value.trim(),
+      auto_enabled: $("setAutoEnabled").checked ? "1" : "0",
+      auto_hours: $("setAutoHours").value.trim(),
+      auto_pages: $("setAutoPages").value.trim(),
+      auto_workers: $("setAutoWorkers").value.trim(),
+      auto_export: $("setAutoExport").checked ? "1" : "0",
+      regen_strm: !!regen,
+    };
+    const r = await post("/api/settings", body);
+    if (!r.ok || !r.data.ok) {
+      toast((r.data && r.data.error) || "保存失败");
+      return;
+    }
+    toast(r.data.msg || "已保存");
+    await loadSettings();
+    if (regen) pollJob();
+  }
+
   async function startJob(path, body, label) {
     const r = await post(path, body);
     if (!r.ok || !r.data.ok) {
@@ -412,8 +468,10 @@
         $("browse").style.display = tab === "browse" ? "" : "none";
         $("ops").style.display = tab === "ops" ? "" : "none";
         opsActive = tab === "ops";
-        if (opsActive) pollJob();
-        else clearTimeout(jobTimer);
+        if (opsActive) {
+          loadSettings();
+          pollJob();
+        } else clearTimeout(jobTimer);
       };
     });
 
@@ -486,6 +544,19 @@
         clean: $("strmClean").checked,
         types: $("strmTypes").value.trim(),
       }, "导出 STRM");
+
+    $("btnAll").onclick = () =>
+      startJob("/api/job/all", {
+        types: $("allTypes").value.trim(),
+        pages: Number($("allPages").value || 0),
+        workers: Number($("allWorkers").value || 3),
+        export: $("allExport").checked,
+        nfo: $("allNfo").checked,
+        images: $("allImages").checked,
+      }, "一键更新");
+
+    $("btnSaveSettings").onclick = () => saveSettings(false);
+    $("btnSaveRegen").onclick = () => saveSettings(true);
   }
 
   // ---------------------------------------------------------------- 启动

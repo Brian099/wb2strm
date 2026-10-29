@@ -26,6 +26,29 @@ https://cdn.example.com/.../index.m3u8?auth_key=1700000000-e0552fdf-0-65902ef5..
 
 所以本系统只存 **`vod_id` + `nid`（剧集 ID + 分集 ID）**，播放时调一次源站接口换新地址，并做 30 分钟内存缓存（比实测有效期留了余量）。
 
+## 工作流程
+
+整个流程分三步，界面上点「一键更新」就是把这三步串起来跑：
+
+```
+① 同步目录   sync.py list
+   一级分类 → 条目 ≥10000 的分类按「年份」再按「地区」切片
+   → 每个切片翻页（30 条/页）→ 批量 UPSERT 进 video 表
+   只拿列表元数据（ID / 标题 / 封面 / 状态），不碰分集
+
+② 同步分集   sync.py detail
+   对「没抓过分集」和「状态文本变了」的剧，逐部调详情接口
+   → 拿到 episodeList → 写 episode 表（nid / 集号 / 集名）
+   接口不支持批量，只能一部一部来，所以这步最慢
+
+③ 导出 STRM  strm.py
+   读 video + episode → 每集写一个 .strm（内容是取流地址）+ 可选 NFO / 海报
+```
+
+- **全量**：① 扫全部页 → ② 处理全部 → ③ 导出，首次大约几小时（看站点规模）
+- **增量**：① 只扫每个分类前几页 → ② 只处理新片和状态变化的 → ③ 只重写有变化的文件，通常几分钟
+- **换地址**：改完「服务地址」点「保存并重新导出」，只重写 `.strm` 内容，不动数据库
+
 ## 目录结构
 
 ```
@@ -58,6 +81,8 @@ wb2strm/
 - 点集数直接在内置播放器播放（hls.js），可切 1080P / 720P / 480P
 
 **运维页**
+- **一键更新**：同步目录 → 同步分集 → 导出 STRM 一条龙，日常只用这个按钮
+- **站点与地址**：服务地址、源站域名、缓存时长、定时自动更新，改完保存即时生效，不用改 compose 或重启容器
 - 库存统计（剧集 / 已抓分集 / 分集总数 / 取流缓存），**同步过程中每 2 秒自动刷新，数字实时增长**
 - 三个任务面板：同步目录、同步分集、导出 STRM（可填分类、数量上限、并发、增量选项）
 - 实时日志控制台（运行中 2 秒轮询，空闲 10 秒轮询，容器/命令行侧的改动也能反映出来）
@@ -129,7 +154,10 @@ environment:
   JP_PUBLIC_BASE: http://192.168.1.110:8989   # ← 换成你的局域网 IP 或域名
 ```
 
-其余项（`TZ` / `JP_TOKEN` / `JP_CACHE_TTL` / `JP_DEFAULT_QUALITY`）默认值就能用。
+其余项（`TZ` / `JP_TOKEN` / `JP_DEFAULT_QUALITY`）默认值就能用。
+
+> `JP_PUBLIC_BASE`、`JP_HOST`、`JP_CACHE_TTL` 这三项只是**首次启动的默认值**，
+> 之后以界面「站点与地址」里保存的为准（存在数据库 `setting` 表里），优先级高于环境变量。
 
 **挂载**（`docker-compose.yml` 里已配好）：
 
@@ -202,9 +230,12 @@ python sync.py detail --workers 4   # 补分集
 | GET | `/api/video/<vod_id>` | 详情 + 分集清单（含每集播放地址） |
 | GET | `/api/types` | 分类与年份聚合 |
 | GET | `/api/stats` | 库存统计 |
+| POST | `/api/job/all` | **一键全流程** `{types, pages, workers, export, nfo, images, clean}` |
 | POST | `/api/job/sync` | 触发同步 `{mode:"list"\|"detail", types, limit, workers, force, pages, changed}` |
 | POST | `/api/job/strm` | 触发导出 `{nfo, images, clean, types, limit}` |
 | GET | `/api/job` | 任务状态 + 日志 |
+| GET | `/api/settings` | 读取运行时设置 + 下次自动更新时间 |
+| POST | `/api/settings` | 保存设置 `{public_base, source_host, cache_ttl, auto_*, regen_strm}` |
 | GET | `/health` | 健康检查 |
 
 清晰度：`?q=1080|720|480`，不传则取最高。
@@ -242,7 +273,7 @@ Kodi：直接添加 `strm` 目录为视频源即可。
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `JP_PUBLIC_BASE` | `http://127.0.0.1:8989` | **写进 .strm 的地址**，必须改成播放器能访问的局域网 IP |
+| `JP_PUBLIC_BASE` | `http://127.0.0.1:8989` | **写进 .strm 的地址**，必须改成播放器能访问的局域网 IP。⚠️ 推荐直接在界面「站点与地址」里改 |
 | `JP_LISTEN_HOST` | `0.0.0.0` | 监听地址 |
 | `JP_LISTEN_PORT` | `8989` | 服务端口 |
 | `JP_TOKEN` | 空 | 非空时所有接口要带 `?token=xxx`（会写进 .strm） |
@@ -250,7 +281,7 @@ Kodi：直接添加 `strm` 目录为视频源即可。
 | `JP_STRM_ROOT` | `strm` | STRM 导出根目录 |
 | `JP_CACHE_TTL` | `1800` | 取流缓存秒数 |
 | `JP_DEFAULT_QUALITY` | `1080` | 默认清晰度 |
-| `JP_HOST` | 见 `config.py` | 目标站点地址 |
+| `JP_HOST` | 见 `config.py` | 目标站点地址。⚠️ 同样推荐在界面里改，换域名不用重启 |
 | `JP_APP_KEY` | 见 `config.py` | 接口签名密钥 |
 
 例：
@@ -309,6 +340,26 @@ python sync.py detail --changed
 | `--changed` | 详情阶段除了补 `detail_at=0`（新片），还挑 `remarks <> detail_remark` 的——抓详情时会把当时的 `remarks`（如 `更新至71`）存进 `detail_remark`，站点加集后这个值会变，就能识别出来 |
 
 两个参数要配合用：先 `list --force` 把新状态刷进库，再 `detail --changed` 才会发现哪些剧变了。
+
+## 定时自动更新
+
+不用自己配 cron / 计划任务，服务内置调度器。
+
+运维页 →「站点与地址」里：
+
+- 勾选 **定时自动更新**，填间隔小时数（例如 6 或 24）
+- 设置每次增量扫几页、详情并发、是否自动导出 STRM
+- 保存后立即生效，面板上会显示「下次自动更新时间」
+
+调度器每分钟检查一次，到点且当前没有任务在跑就自动执行 `一键更新`（增量）：
+
+```
+同步目录（每片 N 页） → 同步分集（新增 + 变化） → 导出 STRM
+```
+
+- 开启后的第一次会在约 30 秒后跑一次，之后按间隔循环
+- 和手动任务互斥：正在跑任务时会跳过，不会并发
+- 配置存在数据库里，容器重启后依然有效
 
 ## 注意
 
