@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""同步任务：把金牌影视的「剧集目录 + 分集清单」抓进本地 SQLite。
+"""同步任务：把目标站点的「剧集目录 + 分集清单」抓进本地 SQLite。
 
 只存 vod_id / nid，不存播放地址（地址是短时效签名，由 server 现取）。
 
@@ -200,7 +200,7 @@ def _filter_values(filters, key):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="金牌影视目录同步")
+    ap = argparse.ArgumentParser(description="剧集目录同步")
     sub = ap.add_subparsers(dest="cmd")
 
     p_list = sub.add_parser("list", help="同步剧集目录")

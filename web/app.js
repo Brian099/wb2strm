@@ -1,4 +1,4 @@
-/* 金牌影视 · 本地库 前端 */
+/* wb2strm · 前端 */
 (function () {
   "use strict";
 

@@ -1,10 +1,10 @@
 services:
-  jinpai:
+  wb2strm:
     # 从 Docker Hub 拉取已发布镜像（linux/amd64 + linux/arm64 双架构）
     image: brian9909/wb2strm:latest
     # 想本地构建：把上面 image 行注释掉，换成下面这行，再 docker compose up -d --build
     # build: .
-    container_name: jinpai
+    container_name: wb2strm
     restart: unless-stopped
     ports:
       - "8989:8989"

@@ -1,4 +1,4 @@
-# 金牌影视 · 本地资源系统
+# wb2strm · 网页资源转 STRM
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \

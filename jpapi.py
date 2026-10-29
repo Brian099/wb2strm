@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""金牌影视接口客户端：签名、分类、列表、详情、取流。"""
+"""目标站点接口客户端：签名、分类、列表、详情、取流。"""
 import hashlib
 import threading
 import time

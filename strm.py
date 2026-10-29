@@ -78,7 +78,7 @@ def movie_nfo(v):
   <actor><name>%s</name></actor>
   <director>%s</director>
   <genre>%s</genre>
-  <uniqueid type="jinpai" default="true">%s</uniqueid>
+  <uniqueid type="wb2strm" default="true">%s</uniqueid>
 </movie>
 """ % (xml_escape(v["name"]), xml_escape(v["name"]), xml_escape(v["year"]),
        xml_escape(v["content"]), xml_escape(v["actor"]), xml_escape(v["director"]),
@@ -93,7 +93,7 @@ def tvshow_nfo(v):
   <plot>%s</plot>
   <actor><name>%s</name></actor>
   <genre>%s</genre>
-  <uniqueid type="jinpai" default="true">%s</uniqueid>
+  <uniqueid type="wb2strm" default="true">%s</uniqueid>
 </tvshow>
 """ % (xml_escape(v["name"]), xml_escape(v["year"]), xml_escape(v["content"]),
        xml_escape(v["actor"]), xml_escape(v["type_name"]), xml_escape(v["vod_id"]))

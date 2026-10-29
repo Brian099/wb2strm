@@ -53,10 +53,26 @@ CREATE TABLE IF NOT EXISTS sync_state (
 """
 
 
+def _migrate_db_name():
+    """兼容旧文件名：data/jinpai.db -> data/wb2strm.db（含 -wal/-shm）。"""
+    d = os.path.dirname(config.DB_PATH) or "."
+    old = os.path.join(d, "jinpai.db")
+    if not os.path.exists(old) or os.path.exists(config.DB_PATH):
+        return
+    for suf in ("", "-wal", "-shm"):
+        src, dst = old + suf, config.DB_PATH + suf
+        if os.path.exists(src) and not os.path.exists(dst):
+            try:
+                os.replace(src, dst)
+            except Exception:
+                pass
+
+
 def _conn():
     c = getattr(_local, "conn", None)
     if c is None:
         os.makedirs(os.path.dirname(config.DB_PATH) or ".", exist_ok=True)
+        _migrate_db_name()
         c = sqlite3.connect(config.DB_PATH, timeout=30)
         c.row_factory = sqlite3.Row
         c.execute("PRAGMA journal_mode=WAL")

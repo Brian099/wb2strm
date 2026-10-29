@@ -15,7 +15,7 @@ UA = os.environ.get(
 
 # ---------------- 路径 ----------------
 DATA_DIR = os.environ.get("JP_DATA_DIR", os.path.join(BASE_DIR, "data"))
-DB_PATH = os.environ.get("JP_DB", os.path.join(DATA_DIR, "jinpai.db"))
+DB_PATH = os.environ.get("JP_DB", os.path.join(DATA_DIR, "wb2strm.db"))
 STRM_ROOT = os.environ.get("JP_STRM_ROOT", os.path.join(BASE_DIR, "strm"))
 
 # ---------------- 对外服务 ----------------
