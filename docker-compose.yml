@@ -1,5 +1,8 @@
 services:
   jinpai:
+    # 二选一：
+    #   A. 本地构建（默认，改代码后用）  -> docker compose up -d --build
+    #   B. 用已发布的镜像               -> 注释掉 build 行，image 改成 brian9909/wb2strm:latest
     build: .
     image: jinpai-media:1.0
     container_name: jinpai

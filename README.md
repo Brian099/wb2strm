@@ -1,5 +1,9 @@
 # 金牌影视 · 本地资源系统
 
+[![Build and Push Docker Image](https://github.com/Brian099/wb2strm/actions/workflows/docker.yml/badge.svg)](https://github.com/Brian099/wb2strm/actions/workflows/docker.yml)
+[![Docker Hub](https://img.shields.io/docker/pulls/brian9909/wb2strm?label=docker%20pulls)](https://hub.docker.com/r/brian9909/wb2strm)
+[![Image Size](https://img.shields.io/docker/image-size/brian9909/wb2strm/latest?label=image%20size)](https://hub.docker.com/r/brian9909/wb2strm)
+
 > **免责声明**
 > 本项目仅为技术学习用途的**客户端工具**：不存储、不分发任何视频文件，也不提供任何内容服务。
 > 抓取目标为第三方站点，其内容版权归原权利人所有。请勿用于商业用途、公开对外提供服务或再分发。
@@ -78,7 +82,25 @@ python server.py
 python strm.py --nfo --images
 ```
 
-## Docker 部署
+## 使用已发布的镜像
+
+镜像发布在 Docker Hub：**[brian9909/wb2strm](https://hub.docker.com/r/brian9909/wb2strm)**，同时提供 `linux/amd64` 与 `linux/arm64`（群晖/威联通 ARM 机型可直接用）。
+
+```bash
+docker pull brian9909/wb2strm:latest
+
+docker run -d --name jinpai \
+  --restart unless-stopped \
+  -p 8989:8989 \
+  -e JP_PUBLIC_BASE=http://192.168.1.110:8989 \
+  -v $PWD/data:/app/data \
+  -v $PWD/strm:/app/strm \
+  brian9909/wb2strm:latest
+```
+
+或者把 `docker-compose.yml` 里的 `build: .` 换成 `image: brian9909/wb2strm:latest`，然后 `docker compose up -d`（不需要 `--build`）。
+
+## 自己构建镜像
 
 镜像基于 `python:3.12-slim`，用 waitress（8 线程）跑 WSGI，自带健康检查。
 所有配置都**直接写在 `docker-compose.yml` 里**，不需要 `.env`。
