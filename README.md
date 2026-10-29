@@ -269,13 +269,42 @@ python server.py
 `sync.py` 默认每次请求间隔 0.1–0.15 秒，4 并发。被限流就降到 2 并发、加大 `--sleep`。
 
 **定时更新**
-Windows 计划任务每天跑一次：
+Windows 计划任务每天跑一次（增量，几分钟）：
 
 ```
-python sync.py list
-python sync.py detail --workers 4
+python sync.py list --force --pages 5
+python sync.py detail --changed --workers 4
 python strm.py --nfo --images --clean
 ```
+
+## 增量更新
+
+首次全量跑完之后，日常只需要增量，不用再全量扫 4 万部。
+
+**命令行**
+
+```bash
+# 1) 重扫每个分类的前几页（新片都在最前面，列表按"最近更新"排序）
+python sync.py list --force --pages 5
+
+# 2) 只补"新增的剧" + "集数/状态有变化的剧"
+python sync.py detail --changed
+```
+
+**Web 界面**（运维页）
+
+- 「同步目录」勾上 **增量重扫（忽略断点）**，每片页数填 **5**
+- 「同步分集」勾上 **同时更新状态有变化的剧**（默认已勾）
+
+**原理**
+
+| 参数 | 作用 |
+|---|---|
+| `--force` | 列表页默认按 `sync_state` 断点跳过抓过的页；`--force` 忽略断点重扫（UPSERT 幂等，不会产生重复） |
+| `--pages N` | 每个查询切片最多扫 N 页，避免增量时把 40k 全扫一遍 |
+| `--changed` | 详情阶段除了补 `detail_at=0`（新片），还挑 `remarks <> detail_remark` 的——抓详情时会把当时的 `remarks`（如 `更新至71`）存进 `detail_remark`，源站加集后这个值会变，就能识别出来 |
+
+两个参数要配合用：先 `list --force` 把新状态刷进库，再 `detail --changed` 才会发现哪些剧变了。
 
 ## 注意
 

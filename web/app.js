@@ -450,6 +450,8 @@
         mode: "list",
         types: $("syncTypes").value.trim(),
         limit: Number($("syncLimit").value || 0),
+        force: $("syncForce").checked,
+        pages: Number($("syncPages").value || 0),
       }, "同步目录");
 
     $("btnDetail").onclick = () =>
@@ -457,6 +459,7 @@
         mode: "detail",
         limit: Number($("detLimit").value || 0),
         workers: Number($("detWorkers").value || 4),
+        changed: $("detChanged").checked,
       }, "同步分集");
 
     $("btnStrm").onclick = () =>

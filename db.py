@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS video (
     content       TEXT DEFAULT '',
     episode_count INTEGER DEFAULT 0,
     updated_at    INTEGER DEFAULT 0,
-    detail_at     INTEGER DEFAULT 0      -- 详情(分集)最后同步时间
+    detail_at     INTEGER DEFAULT 0,     -- 详情(分集)最后同步时间
+    detail_remark TEXT DEFAULT ''        -- 抓详情时的状态文本，用于判断"集数有没有更新"
 );
 CREATE INDEX IF NOT EXISTS idx_video_type ON video(type_id);
 CREATE INDEX IF NOT EXISTS idx_video_year ON video(year);
@@ -71,6 +72,10 @@ def init_db():
     cols = [r["name"] for r in c.execute("PRAGMA table_info(video)").fetchall()]
     if "cat" not in cols:
         c.execute("ALTER TABLE video ADD COLUMN cat TEXT DEFAULT ''")
+    if "detail_remark" not in cols:
+        c.execute("ALTER TABLE video ADD COLUMN detail_remark TEXT DEFAULT ''")
+        # 老数据回填：把当前 remarks 当成"已抓过的状态"，避免升级后第一次增量把全库重抓一遍
+        c.execute("UPDATE video SET detail_remark = COALESCE(remarks,'') WHERE detail_at > 0")
     c.commit()
 
 
@@ -79,8 +84,8 @@ def upsert_video(v, detail=False):
     now = int(time.time())
     c = _conn()
     c.execute(
-        """INSERT INTO video (vod_id,name,cat,type_id,type_name,year,area,lang,pic,remarks,actor,director,content,episode_count,updated_at,detail_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """INSERT INTO video (vod_id,name,cat,type_id,type_name,year,area,lang,pic,remarks,actor,director,content,episode_count,updated_at,detail_at,detail_remark)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
            ON CONFLICT(vod_id) DO UPDATE SET
              name=excluded.name,
              cat=CASE WHEN excluded.cat<>'' THEN excluded.cat ELSE video.cat END,
@@ -96,7 +101,8 @@ def upsert_video(v, detail=False):
              content=CASE WHEN excluded.content<>'' THEN excluded.content ELSE video.content END,
              episode_count=CASE WHEN excluded.episode_count>0 THEN excluded.episode_count ELSE video.episode_count END,
              updated_at=excluded.updated_at,
-             detail_at=CASE WHEN excluded.detail_at>0 THEN excluded.detail_at ELSE video.detail_at END""",
+             detail_at=CASE WHEN excluded.detail_at>0 THEN excluded.detail_at ELSE video.detail_at END,
+             detail_remark=CASE WHEN excluded.detail_remark<>'' THEN excluded.detail_remark ELSE video.detail_remark END""",
         (
             str(v.get("vod_id") or ""),
             str(v.get("name") or ""),
@@ -114,6 +120,7 @@ def upsert_video(v, detail=False):
             int(v.get("episode_count") or 0),
             now,
             now if detail else 0,
+            str(v.get("remarks") or "") if detail else "",
         ),
     )
 
@@ -164,7 +171,7 @@ def get_episodes(vod_id):
     return [dict(r) for r in rows]
 
 
-def _where(type_id="", year="", keyword="", cat="", need_detail=None):
+def _where(type_id="", year="", keyword="", cat="", need_detail=None, changed=False):
     sql = " WHERE 1=1"
     args = []
     if cat:
@@ -180,22 +187,25 @@ def _where(type_id="", year="", keyword="", cat="", need_detail=None):
         sql += " AND (name LIKE ? OR actor LIKE ? OR type_name LIKE ?)"
         kw = "%" + keyword + "%"
         args += [kw, kw, kw]
-    if need_detail is True:
+    if changed:
+        # 从未抓过分集，或列表里的状态文本（如"更新至71"）和上次抓详情时不一样
+        sql += " AND (detail_at=0 OR COALESCE(remarks,'')<>COALESCE(detail_remark,''))"
+    elif need_detail is True:
         sql += " AND detail_at=0"
     elif need_detail is False:
         sql += " AND detail_at>0"
     return sql, args
 
 
-def list_videos(type_id="", year="", keyword="", cat="", need_detail=None, limit=100, offset=0):
-    sql, args = _where(type_id, year, keyword, cat, need_detail)
+def list_videos(type_id="", year="", keyword="", cat="", need_detail=None, changed=False, limit=100, offset=0):
+    sql, args = _where(type_id, year, keyword, cat, need_detail, changed)
     sql = "SELECT * FROM video" + sql + " ORDER BY vod_id DESC LIMIT ? OFFSET ?"
     args += [int(limit), int(offset)]
     return [dict(r) for r in _conn().execute(sql, args).fetchall()]
 
 
-def count_videos(type_id="", year="", keyword="", cat="", need_detail=None):
-    sql, args = _where(type_id, year, keyword, cat, need_detail)
+def count_videos(type_id="", year="", keyword="", cat="", need_detail=None, changed=False):
+    sql, args = _where(type_id, year, keyword, cat, need_detail, changed)
     row = _conn().execute("SELECT COUNT(*) n FROM video" + sql, args).fetchone()
     return int(row["n"])
 

@@ -181,7 +181,7 @@ sync.LOG_SINK = job.add
 strm.LOG_SINK = job.add
 
 
-def _job_sync_list(types, limit, sleep):
+def _job_sync_list(types, limit, sleep, force=False, pages=0):
     a = JPApi()
     all_types = a.types()
     want = [x.strip() for x in str(types or "").split(",") if x.strip()]
@@ -191,14 +191,18 @@ def _job_sync_list(types, limit, sleep):
     areas = sync._filter_values(filters, "districtList")
     sync.log("分类：%s" % ", ".join("%s(%s)" % (t["type_name"], t["type_id"]) for t in sel))
     sync.log("年份切片 %d 个，地区切片 %d 个" % (len(years), len(areas)))
-    sync.sync_list(a, sel, years, areas, limit=int(limit or 0), sleep=float(sleep or 0.15))
+    if force:
+        sync.log("增量模式：忽略断点重扫%s" % ("，每个切片最多 %d 页" % int(pages) if pages else ""))
+    sync.sync_list(a, sel, years, areas, limit=int(limit or 0), sleep=float(sleep or 0.15),
+                   force=bool(force), max_pages=int(pages or 0))
     s = db.stats()
     sync.log("列表同步结束：剧集 %d 部" % s["videos"])
 
 
-def _job_sync_detail(limit, workers, sleep):
+def _job_sync_detail(limit, workers, sleep, changed=False):
     a = JPApi()
-    sync.sync_detail(a, limit=int(limit or 0), workers=int(workers or 4), sleep=float(sleep or 0.1))
+    sync.sync_detail(a, limit=int(limit or 0), workers=int(workers or 4), sleep=float(sleep or 0.1),
+                     changed=bool(changed))
     s = db.stats()
     sync.log("详情同步结束：%d 部有分集，共 %d 条分集" % (s["videos_with_episodes"], s["episodes"]))
 
@@ -409,9 +413,12 @@ def api_job_sync():
     sleep = float(d.get("sleep") or 0.15)
     types = str(d.get("types") or "")
     if mode == "detail":
-        ok, msg = job.start("同步分集", lambda: _job_sync_detail(limit, workers, sleep))
+        changed = bool(d.get("changed"))
+        ok, msg = job.start("同步分集", lambda: _job_sync_detail(limit, workers, sleep, changed))
     else:
-        ok, msg = job.start("同步目录", lambda: _job_sync_list(types, limit, sleep))
+        force = bool(d.get("force"))
+        pages = int(d.get("pages") or 0)
+        ok, msg = job.start("同步目录", lambda: _job_sync_list(types, limit, sleep, force, pages))
     return jsonify({"ok": ok, "msg": msg}), (200 if ok else 409)
 
 

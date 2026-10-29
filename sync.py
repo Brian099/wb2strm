@@ -84,7 +84,7 @@ def to_video(item, tid, type_name):
     }
 
 
-def sync_list(api, types, years, areas, limit=0, sleep=0.15):
+def sync_list(api, types, years, areas, limit=0, sleep=0.15, force=False, max_pages=0):
     done = 0
     for t in types:
         tid, tname = t["type_id"], t["type_name"]
@@ -96,12 +96,14 @@ def sync_list(api, types, years, areas, limit=0, sleep=0.15):
         log("分类 %s(%s) 切成 %d 个查询切片" % (tname, tid, len(slices)))
         for kw, total in slices:
             pages = int(math.ceil(total / float(config.PAGE_SIZE))) if total else 0
+            if max_pages and max_pages > 0:
+                pages = min(pages, max_pages)
             for pg in range(1, pages + 1):
                 if limit and done >= limit:
                     log("达到 --limit %d，停止列表同步" % limit)
                     return done
                 key = "list:%s:%s:%s:%s" % (tid, kw.get("year"), kw.get("area"), pg)
-                if db.get_state(key) == "1":
+                if not force and db.get_state(key) == "1":
                     continue
                 try:
                     d = api.video_list(tid, page=pg, **kw)
@@ -155,9 +157,13 @@ def fetch_detail(api, vod_id, sleep=0.15):
     return vod_id, (video, eps), ""
 
 
-def sync_detail(api, limit=0, workers=4, sleep=0.1):
-    todo = db.list_videos(need_detail=True, limit=limit or 10 ** 9)
-    log("待补详情的剧集：%d 部，并发 %d" % (len(todo), workers))
+def sync_detail(api, limit=0, workers=4, sleep=0.1, changed=False):
+    if changed:
+        todo = db.list_videos(changed=True, limit=limit or 10 ** 9)
+        log("待更新详情的剧集（新增 + 状态变化）：%d 部，并发 %d" % (len(todo), workers))
+    else:
+        todo = db.list_videos(need_detail=True, limit=limit or 10 ** 9)
+        log("待补详情的剧集（仅从未抓过的）：%d 部，并发 %d" % (len(todo), workers))
     if not todo:
         return 0
     n = 0
@@ -201,16 +207,22 @@ def main():
     p_list.add_argument("--types", default="", help="分类 id，逗号分隔，默认全部")
     p_list.add_argument("--limit", type=int, default=0, help="最多入库多少条（试跑用）")
     p_list.add_argument("--sleep", type=float, default=0.15)
+    p_list.add_argument("--force", action="store_true", help="忽略断点重扫（增量更新用）")
+    p_list.add_argument("--pages", type=int, default=0, help="每个切片最多扫几页（增量更新用，0=全部）")
 
     p_det = sub.add_parser("detail", help="同步分集清单")
     p_det.add_argument("--limit", type=int, default=0)
     p_det.add_argument("--workers", type=int, default=4)
     p_det.add_argument("--sleep", type=float, default=0.1)
+    p_det.add_argument("--changed", action="store_true", help="同时更新状态有变化（如新增集数）的剧")
 
     p_all = sub.add_parser("all", help="列表 + 详情")
     p_all.add_argument("--types", default="")
     p_all.add_argument("--limit", type=int, default=0)
     p_all.add_argument("--workers", type=int, default=4)
+    p_all.add_argument("--force", action="store_true")
+    p_all.add_argument("--pages", type=int, default=0)
+    p_all.add_argument("--changed", action="store_true")
 
     sub.add_parser("stats", help="查看库存")
 
@@ -232,10 +244,12 @@ def main():
         years = _filter_values(filters, "yearList")
         areas = _filter_values(filters, "districtList")
         log("年份切片 %d 个，地区切片 %d 个" % (len(years), len(areas)))
-        sync_list(api, types, years, areas, limit=args.limit)
+        sync_list(api, types, years, areas, limit=args.limit,
+                  force=getattr(args, "force", False), max_pages=getattr(args, "pages", 0))
 
     if args.cmd in ("detail", "all"):
-        sync_detail(api, limit=getattr(args, "limit", 0), workers=getattr(args, "workers", 4))
+        sync_detail(api, limit=getattr(args, "limit", 0), workers=getattr(args, "workers", 4),
+                    changed=getattr(args, "changed", False))
 
     s = db.stats()
     log("完成。剧集 %d 部（%d 部有分集），分集 %d 条；本次失败 %d 次"

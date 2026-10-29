@@ -43,6 +43,10 @@
         <p>抓取剧集列表入库。电影会自动按年份切片绕开 10000 条上限。</p>
         <div class="field"><span>分类</span><input id="syncTypes" type="text" placeholder="留空=全部，或 2,88"></div>
         <div class="field"><span>数量上限</span><input id="syncLimit" type="number" placeholder="0=不限" value="0"></div>
+        <div class="field">
+          <label><input type="checkbox" id="syncForce"> 增量重扫（忽略断点）</label>
+        </div>
+        <div class="field"><span>每片页数</span><input id="syncPages" type="number" placeholder="0=全部；增量填 5" value="0"></div>
         <button class="btn" id="btnList">开始同步目录</button>
       </div>
 
@@ -51,6 +55,9 @@
         <p>为缺分集的剧补详情。接口不支持批量，4 并发约 2.4 小时跑完 4 万部。</p>
         <div class="field"><span>数量上限</span><input id="detLimit" type="number" placeholder="0=不限" value="0"></div>
         <div class="field"><span>并发</span><input id="detWorkers" type="number" value="4" min="1" max="8"></div>
+        <div class="field">
+          <label><input type="checkbox" id="detChanged" checked> 同时更新状态有变化的剧</label>
+        </div>
         <button class="btn" id="btnDetail">开始同步分集</button>
       </div>
 
