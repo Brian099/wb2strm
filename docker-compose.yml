@@ -10,13 +10,10 @@ services:
       - "8989:8989"
     environment:
       TZ: Asia/Shanghai
-      # ★ 写进 .strm 的地址，必须改成播放器（Emby/Jellyfin/电视盒子）能访问到的地址
-      #   例：http://192.168.1.110:8989  或  http://nas.local:8989
-      JP_PUBLIC_BASE: http://192.168.1.147:8989
+      # 服务地址 / 源站域名 / 缓存时长 都在界面「站点与地址」里设置（存数据库，改完即时生效）
+      # 这里只放容器级参数：
       # 留空=不鉴权；非空时界面和接口都要带 ?token=xxx
       JP_TOKEN: ""
-      # 取流缓存秒数（实测签名 46 分钟仍有效，1800 秒安全）
-      JP_CACHE_TTL: "1800"
       JP_DEFAULT_QUALITY: "1080"
     volumes:
       # 数据库（剧集目录）

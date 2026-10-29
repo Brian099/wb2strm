@@ -34,7 +34,14 @@ LOG_SINK = None
 
 def log(msg):
     line = "[%s] %s" % (time.strftime("%H:%M:%S"), msg)
-    print(line, flush=True)
+    try:
+        print(line, flush=True)
+    except Exception:
+        # Windows 控制台是 GBK 时，个别字符可能编不进去，降级处理
+        try:
+            print(line.encode("gbk", "replace").decode("gbk", "replace"), flush=True)
+        except Exception:
+            pass
     if LOG_SINK:
         try:
             LOG_SINK(line)
@@ -126,9 +133,19 @@ def download_image(url, path):
     return False
 
 
+def _check_public_base():
+    """服务地址是本机回环时给出提示：写进 .strm 后别的设备播不了。"""
+    base = settings.public_base()
+    if not base or "127.0.0.1" in base or "localhost" in base:
+        log("[警告] 服务地址是 %s，导出的 .strm 只有本机能播" % (base or "(空)"))
+        log("  请到界面「站点与地址」改成局域网 IP（如 http://192.168.1.10:8989），"
+            "再点「保存并重新导出 STRM」")
+
+
 def export(root=None, types="", limit=0, nfo=False, images=False, clean=False):
     """导出 STRM。types 为逗号分隔的一级分类 id。返回统计字典。"""
     db.init_db()
+    _check_public_base()
     root = os.path.abspath(root or config.STRM_ROOT)
     os.makedirs(root, exist_ok=True)
     manifest_path = os.path.join(root, "_manifest.json")

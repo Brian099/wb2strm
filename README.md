@@ -117,17 +117,19 @@ python strm.py --nfo --images
 ```bash
 cd wb2strm
 
-# 1) 改 docker-compose.yml 里的 JP_PUBLIC_BASE（改成播放器能访问到的局域网 IP）
-
-# 2) 拉取并启动
+# 1) 拉取并启动
 docker compose pull
 docker compose up -d
 
-# 3) 看日志
+# 2) 看日志
 docker compose logs -f
 ```
 
-打开 `http://<宿主机IP>:8989/` 即可。
+打开 `http://<宿主机IP>:8989/`，进 **运维 → 站点与地址**，把「服务地址」改成
+`http://<宿主机IP>:8989` 并点「保存并重新导出 STRM」即可。
+
+> 服务地址、源站域名、缓存时长都存在数据库里，**不需要写进 compose**。
+> 环境变量里只留容器级参数（`TZ` / `JP_TOKEN` / `JP_DEFAULT_QUALITY`）。
 
 **更新到最新版**
 
@@ -141,23 +143,18 @@ docker compose pull && docker compose up -d
 docker run -d --name wb2strm \
   --restart unless-stopped \
   -p 8989:8989 \
-  -e JP_PUBLIC_BASE=http://192.168.1.110:8989 \
   -v $PWD/data:/app/data \
   -v $PWD/strm:/app/strm \
   brian9909/wb2strm:latest
 ```
 
-**`docker-compose.yml` 里需要改的只有这一行**：
+**`docker-compose.yml` 基本不用改**：服务地址、源站域名、缓存时长、定时更新参数
+都在界面「站点与地址」里配置，存在数据库 `setting` 表，优先级高于环境变量。
+环境变量里只剩 `TZ` / `JP_TOKEN` / `JP_DEFAULT_QUALITY` 这类容器级参数。
 
-```yaml
-environment:
-  JP_PUBLIC_BASE: http://192.168.1.110:8989   # ← 换成你的局域网 IP 或域名
-```
-
-其余项（`TZ` / `JP_TOKEN` / `JP_DEFAULT_QUALITY`）默认值就能用。
-
-> `JP_PUBLIC_BASE`、`JP_HOST`、`JP_CACHE_TTL` 这三项只是**首次启动的默认值**，
-> 之后以界面「站点与地址」里保存的为准（存在数据库 `setting` 表里），优先级高于环境变量。
+> 首次启动（空数据库）时服务地址默认是 `http://127.0.0.1:8989`，
+> 导出前记得先在界面改掉，否则 `.strm` 里写的是回环地址，别的设备播不了。
+> 导出时如果检测到回环地址，日志里会给出警告。
 
 **挂载**（`docker-compose.yml` 里已配好）：
 

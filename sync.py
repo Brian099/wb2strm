@@ -39,7 +39,14 @@ def clean(text):
 
 def log(msg):
     line = "[%s] %s" % (time.strftime("%H:%M:%S"), msg)
-    print(line, flush=True)
+    try:
+        print(line, flush=True)
+    except Exception:
+        # Windows 控制台是 GBK 时，个别字符可能编不进去，降级处理
+        try:
+            print(line.encode("gbk", "replace").decode("gbk", "replace"), flush=True)
+        except Exception:
+            pass
     if LOG_SINK:
         try:
             LOG_SINK(line)
