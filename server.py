@@ -262,7 +262,8 @@ def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=True
             sync.log("① 同步目录：目录尚未完整扫过，继续全量抓取（断点续爬，已有的页会跳过）")
         else:
             sync.log("① 同步目录：增量，每片最多 %s 页" % (pages or "全部"))
-        res = sync.sync_list(a, sel, years, areas, limit=int(limit or 0), sleep=0.15,
+        res = sync.sync_list(a, sel, years, areas, limit=int(limit or 0),
+                             sleep=config.LIST_SLEEP,
                              force=not full_mode, max_pages=int(pages or 0))
         if full_mode:
             if res.get("complete"):
@@ -272,7 +273,8 @@ def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=True
                 sync.log("   目录仍未扫全：失败 %d 页，下次启动会继续补" % res.get("failed", 0))
 
         sync.log("② 同步分集：新增 + 状态变化，并发 %s" % workers)
-        sync.sync_detail(a, limit=0, workers=int(workers or 3), sleep=0.1, changed=True)
+        sync.sync_detail(a, limit=0, workers=int(workers or config.WORKERS),
+                         sleep=config.DETAIL_SLEEP, changed=True)
 
         if export:
             sync.log("③ 导出 STRM")

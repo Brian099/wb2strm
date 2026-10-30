@@ -21,6 +21,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import config
 import db
+import jpapi
 from jpapi import JPApi, JPError
 
 _lock = threading.Lock()
@@ -64,6 +65,10 @@ def log(msg):
             pass
 
 
+# 接口层的限流提示也走同一个日志
+jpapi.LOG = log
+
+
 # ------------------------------------------------------------------ 列表
 def iter_slices(api, tid, years, areas):
     """把一个分类切成若干"不超过 10000 条"的查询切片。"""
@@ -101,15 +106,19 @@ def to_video(item, tid, type_name):
     }
 
 
-def sync_list(api, types, years, areas, limit=0, sleep=0.15, force=False, max_pages=0):
+def sync_list(api, types, years, areas, limit=0, sleep=None, force=False, max_pages=0):
+    if sleep is None:
+        sleep = config.LIST_SLEEP
     # 先算出每个分类要扫多少页，便于展示总进度
     plan = []
+    type_failed = 0
     for t in types:
         tid, tname = t["type_id"], t["type_name"]
         try:
             slices = list(iter_slices(api, tid, years, areas))
         except JPError as e:
-            log("分类 %s(%s) 取数量失败: %s" % (tname, tid, e))
+            log("分类 %s(%s) 取数量失败（本轮跳过，下次会重试）: %s" % (tname, tid, e))
+            type_failed += 1
             continue
         pages_of = []
         for kw, total in slices:
@@ -135,7 +144,8 @@ def sync_list(api, types, years, areas, limit=0, sleep=0.15, force=False, max_pa
                 if limit and done >= limit:
                     log("达到上限 %d 条，停止列表同步" % limit)
                     progress("同步目录", page_done, total_pages)
-                    return {"rows": done, "pages": total_pages, "failed": page_failed, "complete": False}
+                    return {"rows": done, "pages": total_pages, "failed": page_failed,
+                            "types_failed": type_failed, "complete": False}
                 key = "list:%s:%s:%s:%s" % (tid, kw.get("year"), kw.get("area"), pg)
                 if not force and db.get_state(key) == "1":
                     page_done += 1
@@ -162,8 +172,12 @@ def sync_list(api, types, years, areas, limit=0, sleep=0.15, force=False, max_pa
                 time.sleep(sleep)
 
     # 只有「没限页数 + 没有失败页」才算扫全（限页数的增量永远不算）
-    complete = (page_failed == 0 and page_done >= total_pages and not max_pages)
-    return {"rows": done, "pages": total_pages, "failed": page_failed, "complete": complete}
+    complete = (page_failed == 0 and type_failed == 0
+                and page_done >= total_pages and not max_pages)
+    if type_failed:
+        log("本轮有 %d 个分类整体失败，目录还不能算扫全" % type_failed)
+    return {"rows": done, "pages": total_pages, "failed": page_failed,
+            "types_failed": type_failed, "complete": complete}
 
 
 # ------------------------------------------------------------------ 详情
@@ -199,7 +213,11 @@ def fetch_detail(api, vod_id, sleep=0.15):
     return vod_id, (video, eps), ""
 
 
-def sync_detail(api, limit=0, workers=4, sleep=0.1, changed=False):
+def sync_detail(api, limit=0, workers=None, sleep=None, changed=False):
+    if workers is None:
+        workers = config.WORKERS
+    if sleep is None:
+        sleep = config.DETAIL_SLEEP
     if changed:
         todo = db.list_videos(changed=True, limit=limit or 10 ** 9)
         log("待更新详情的剧集（新增 + 状态变化）：%d 部，并发 %d" % (len(todo), workers))

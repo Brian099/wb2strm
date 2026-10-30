@@ -17,6 +17,45 @@ class JPError(Exception):
     pass
 
 
+class JPRateLimited(JPError):
+    """被站点限流（code=99600 请求太频繁）。"""
+
+
+# 站点限流返回码
+_RATE_CODES = (99600,)
+# 全局冷却时间戳：被限流后所有请求先等一下，避免越撞越狠
+_cooldown = [0.0]
+_cooldown_lock = threading.Lock()
+# 日志钩子（由 sync 模块挂上）
+LOG = None
+
+
+def _log(msg):
+    if LOG:
+        try:
+            LOG(msg)
+        except Exception:
+            pass
+
+
+def _is_rate_limit(code, msg):
+    if code in _RATE_CODES or str(code) in [str(c) for c in _RATE_CODES]:
+        return True
+    m = str(msg or "")
+    return ("频繁" in m) or ("太快" in m) or ("休息" in m)
+
+
+def _wait_cooldown():
+    wait = _cooldown[0] - time.time()
+    if wait > 0:
+        time.sleep(min(wait, 120))
+
+
+def _set_cooldown(seconds):
+    with _cooldown_lock:
+        _cooldown[0] = max(_cooldown[0], time.time() + seconds)
+
+
 class JPApi:
     def __init__(self, host=None, timeout=20):
         self.host = (host or settings.source_host()).rstrip("/")
@@ -42,29 +81,41 @@ class JPApi:
         sign = hashlib.sha1(hashlib.md5(raw.encode("utf-8")).hexdigest().encode("utf-8")).hexdigest()
         return qs, t, sign
 
-    def _api(self, path, params=None, retry=3):
+    def _api(self, path, params=None, retry=6):
         qs, t, sign = self._sign(params)
         url = self.host + path + (("?" + qs) if qs else "")
         headers = {"t": t, "sign": sign}
         last = ""
+        rate_hits = 0
         for i in range(retry):
+            _wait_cooldown()
             try:
                 r = self.session.get(url, headers=headers, timeout=self.timeout, verify=False)
                 if r.status_code != 200:
                     last = "HTTP %s" % r.status_code
-                    time.sleep(0.5 * (i + 1))
+                    time.sleep(1.0 * (i + 1))
                     continue
                 data = r.json()
                 code = data.get("code")
+                msg = data.get("msg")
+
+                # 被限流：指数退避 + 全局冷却，重试次数放宽
+                if _is_rate_limit(code, msg):
+                    rate_hits += 1
+                    back = min(120, 5 * (2 ** min(rate_hits, 4)))
+                    _set_cooldown(back)
+                    _log("[限流] 站点提示「%s」，暂停 %d 秒后重试（第 %d 次）" % (msg or code, back, rate_hits))
+                    time.sleep(back)
+                    continue
+
                 if code not in (None, 0, "0", 200, "200"):
-                    last = "code=%s msg=%s" % (code, data.get("msg"))
-                    # 签名类错误重试无意义，但时间戳抖动可能自愈，仍重试一次
-                    time.sleep(0.5)
+                    last = "code=%s msg=%s" % (code, msg)
+                    time.sleep(1.0)
                     continue
                 return data
             except Exception as e:
                 last = repr(e)
-                time.sleep(0.5 * (i + 1))
+                time.sleep(1.0 * (i + 1))
         raise JPError("%s 请求失败: %s" % (path, last))
 
     # ------------------------------------------------------------------ 分类

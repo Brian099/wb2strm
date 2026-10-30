@@ -39,7 +39,10 @@ PAGE_SIZE = 30
 # 增量时每个切片扫几页（0=全部；首次空库会自动用全部）
 PAGES = int(os.environ.get("JP_PAGES", "5"))
 # 详情并发
-WORKERS = int(os.environ.get("JP_WORKERS", "3"))
+WORKERS = int(os.environ.get("JP_WORKERS", "2"))
+# 请求间隔（秒）：列表页 / 详情页。站点会限流（code=99600），慢一点更稳
+LIST_SLEEP = float(os.environ.get("JP_LIST_SLEEP", "0.5"))
+DETAIL_SLEEP = float(os.environ.get("JP_DETAIL_SLEEP", "0.3"))
 # 自动更新间隔（小时），从上一次「跑完」开始计时
 INTERVAL_HOURS = float(os.environ.get("JP_INTERVAL_HOURS", "24"))
 # 启动后是否立刻跑一次（默认开启；设为 0 则等第一个间隔到期）
