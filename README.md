@@ -102,7 +102,9 @@ cd wb2strm
 python sync.py list --types 88 --limit 60
 python sync.py detail --limit 12 --workers 3
 
-# 2) 起服务
+# 2) 起服务（必须先设 JP_HOST / JP_APP_KEY，否则会提示缺项并退出）
+$env:JP_HOST="https://www.jiabaide.cn"
+$env:JP_APP_KEY="cb808529bae6b6be45ecfab29a4889bc"
 python server.py
 # 浏览器打开 http://127.0.0.1:8989/
 
@@ -335,8 +337,10 @@ Kodi：直接添加 `strm` 目录为视频源即可。
 | `JP_CACHE_TTL` | `1800` | 取流缓存秒数 |
 | `JP_DEFAULT_QUALITY` | `1080` | 默认清晰度 |
 | `JP_PUBLIC_BASE` | `http://127.0.0.1:8989` | **本服务自己的地址**（写进 .strm），首次默认值，之后以界面保存的为准 |
-| `JP_HOST` | `https://www.jiabaide.cn` | **被抓取的站点地址**，换域名只改这里 |
-| `JP_APP_KEY` | 内置 | 接口签名密钥，报「应用签名失败」时更新 |
+| `JP_HOST` | **必填** | **被抓取的站点地址**，换域名只改这里 |
+| `JP_APP_KEY` | **必填** | 接口签名密钥，报「应用签名失败」时更新 |
+
+> 代码里**不固化任何域名和密钥**。这两项缺失时容器会直接报错退出，不会带着旧域名默默跑。
 
 > 注意区分两个地址：`JP_HOST` 是**去哪抓**，`JP_PUBLIC_BASE` 是**本服务在哪**（写进 .strm 供播放器访问）。
 >
