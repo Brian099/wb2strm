@@ -7,7 +7,7 @@
 性能要点（几十万集时很关键）：
   * 分集一次性查出（episodes_map），不再逐部查询
   * 目录只创建一次（缓存已建目录），避免每个文件都 makedirs
-  * 海报/背景图同一张图只下一次，本地复制出 fanart，且并行下载
+  * 海报并行下载，只存 poster.jpg（站点没有横版背景图，不做假 fanart）
   * 每集单独的 .nfo 默认关闭（每部剧 1 个 tvshow.nfo 就够 Emby 用）
   * manifest 只存「路径 -> 地址」，几十万条也不会吃掉太多内存
 
@@ -21,7 +21,6 @@ import argparse
 import json
 import os
 import re
-import shutil
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -160,15 +159,17 @@ class _Writer:
 
 
 def _download_images(items, workers=8):
-    """items: [(url, series_dir)]。同一张图只下载一次，本地复制出 fanart。"""
+    """items: [(url, series_dir)]。只下载竖版封面 poster.jpg，并行执行。"""
     if not items:
         return 0
 
     def one(item):
         url, d = item
         p1 = os.path.join(d, "poster.jpg")
-        p2 = os.path.join(d, "fanart.jpg")
-        if os.path.exists(p1) and os.path.exists(p2):
+        # 站点只提供一张竖版封面（270×360），没有横版背景图。
+        # 硬把竖图当 fanart 会被 Emby 拉伸裁切成 16:9，很难看，所以只存 poster，
+        # 背景交给 Emby/Jellyfin 自己用主图生成。
+        if os.path.exists(p1):
             return 0
         try:
             r = requests.get(url, timeout=20, verify=False,
@@ -178,11 +179,6 @@ def _download_images(items, workers=8):
             os.makedirs(d, exist_ok=True)
             with open(p1, "wb") as f:
                 f.write(r.content)
-            try:
-                shutil.copyfile(p1, p2)
-            except Exception:
-                with open(p2, "wb") as f:
-                    f.write(r.content)
             return 1
         except Exception:
             return 0
