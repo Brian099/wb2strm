@@ -240,7 +240,7 @@ def _job_strm(nfo, images, clean, types, limit, ep_nfo=False):
     strm.export(None, types or "", int(limit or 0), bool(nfo), bool(images), bool(clean), bool(ep_nfo))
 
 
-def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=None, images=None, clean=False):
+def _job_full(types="", pages=None, workers=None, limit=0, export=True, clean=False):
     """全流程：① 同步目录 -> ② 同步分集 -> ③ 导出 STRM
 
     空库时自动全量（扫全部页），有数据时走增量（每片 config.PAGES 页）。
@@ -676,8 +676,6 @@ def api_job_all():
         workers=int(d.get("workers") or 3),
         limit=int(d.get("limit") or 0),
         export=bool(d.get("export", True)),
-        nfo=bool(d.get("nfo", True)),
-        images=bool(d.get("images", True)),
         clean=bool(d.get("clean", False)),
     ))
     return jsonify({"ok": ok, "msg": msg}), (200 if ok else 409)
