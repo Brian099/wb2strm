@@ -269,7 +269,8 @@ def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=True
 
         if export:
             sync.log("③ 导出 STRM")
-            strm.export(None, types or "", 0, bool(nfo), bool(images), bool(clean))
+            # 自动流程里开启 clean：清掉库里已不存在的 .strm，保证磁盘数量与库一致
+            strm.export(None, types or "", 0, bool(nfo), bool(images), True)
 
         st = db.stats()
         sync.log("全流程完成：剧集 %d 部（%d 部有分集），分集 %d 条"
