@@ -4,9 +4,39 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ---------------- 站点 ----------------
-HOST = os.environ.get("JP_HOST", "https://www.jiabaide.cn").rstrip("/")
-APP_KEY = os.environ.get("JP_APP_KEY", "cb808529bae6b6be45ecfab29a4889bc")
+# ---------------- 站点（必填，来自环境变量）----------------
+# 不在代码里固化任何域名/密钥：换站点只改 compose，镜像本身保持通用
+HOST = os.environ.get("JP_HOST", "").strip().rstrip("/")
+APP_KEY = os.environ.get("JP_APP_KEY", "").strip()
+
+
+def missing_required():
+    """返回缺失的必填环境变量，供启动自检使用。"""
+    miss = []
+    if not HOST:
+        miss.append("JP_HOST")
+    if not APP_KEY:
+        miss.append("JP_APP_KEY")
+    return miss
+
+
+def check_required():
+    """启动自检：缺配置直接退出，避免带着错误域名默默跑。"""
+    miss = missing_required()
+    if not miss:
+        return True
+    print("=" * 60)
+    print("[错误] 缺少必填环境变量：%s" % "、".join(miss))
+    print("")
+    print("请在 docker-compose.yml 的 environment 里配置：")
+    print('  JP_HOST: "https://<站点域名>"')
+    print('  JP_APP_KEY: "<站点前端 bundle 里的签名密钥>"')
+    print("")
+    print("说明：")
+    print("  JP_HOST     被抓取的站点地址（不是本服务的地址）")
+    print("  JP_APP_KEY  接口签名密钥，站点改版后可能变化")
+    print("=" * 60)
+    return False
 UA = os.environ.get(
     "JP_UA",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

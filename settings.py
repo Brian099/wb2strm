@@ -74,7 +74,10 @@ def public_base():
 
 def source_host():
     """被抓取的站点地址，来自环境变量 JP_HOST（换域名只改 compose）。"""
-    return config.HOST.rstrip("/")
+    host = (config.HOST or "").rstrip("/")
+    if not host:
+        raise RuntimeError("未配置环境变量 JP_HOST（抓取站点地址）")
+    return host
 
 
 def last_finish():

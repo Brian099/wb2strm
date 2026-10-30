@@ -59,6 +59,8 @@ def _set_cooldown(seconds):
 class JPApi:
     def __init__(self, host=None, timeout=20):
         self.host = (host or settings.source_host()).rstrip("/")
+        if not config.APP_KEY:
+            raise JPError("未配置环境变量 JP_APP_KEY（接口签名密钥）")
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({

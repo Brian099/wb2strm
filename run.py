@@ -11,6 +11,8 @@ from server import app, scheduler
 
 
 def main():
+    if not config.check_required():
+        raise SystemExit(1)
     db.init_db()
     scheduler.start()
     port = config.LISTEN_PORT

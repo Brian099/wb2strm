@@ -41,11 +41,11 @@ app.config["JSON_AS_ASCII"] = False
 
 _api_lock = threading.Lock()
 _api_host = ""
-api = JPApi()
+api = None      # 延迟创建：模块导入时不碰环境变量，缺配置由启动自检统一报错
 
 
 def get_api():
-    """源站域名可以在界面改，这里按当前设置复用/重建客户端。"""
+    """按当前配置创建/复用接口客户端（站点地址变了会自动重建）。"""
     global api, _api_host
     host = settings.source_host()
     if host != _api_host:
@@ -621,6 +621,8 @@ def api_job_strm():
 
 
 if __name__ == "__main__":
+    if not config.check_required():
+        raise SystemExit(1)
     db.init_db()
     scheduler.start()
     print("界面      http://127.0.0.1:%d/" % config.LISTEN_PORT)
