@@ -56,6 +56,13 @@
         <input id="setPublicBase" type="text" placeholder="http://192.168.1.110:8989">
         <button class="btn" id="btnSaveRegen" style="white-space:nowrap">保存并重新生成 STRM</button>
       </div>
+      <div class="field">
+        <label><input type="checkbox" id="regenNfo"> 同时生成 NFO 元数据</label>
+        <label><input type="checkbox" id="regenImages"> 同时下载海报</label>
+      </div>
+      <p style="margin:6px 0 0;color:#8b93a3;font-size:12.5px">
+        自动更新只写 .strm 文件，不生成 NFO、不下载海报；需要时勾选后手动生成一次即可。
+      </p>
     </div>
 
     <div class="panel">

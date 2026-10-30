@@ -423,6 +423,8 @@
     const r = await post("/api/settings", {
       public_base: $("setPublicBase").value.trim(),
       regen_strm: true,
+      nfo: $("regenNfo").checked,
+      images: $("regenImages").checked,
     });
     if (!r.ok || !r.data.ok) {
       toast((r.data && r.data.error) || "保存失败");

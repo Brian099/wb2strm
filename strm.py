@@ -203,12 +203,9 @@ def export(root=None, types="", limit=0, nfo=None, images=None, clean=False, ep_
     db.init_db()
     _check_public_base()
 
-    if nfo is None:
-        nfo = bool(config.EXPORT_NFO)
-    if ep_nfo is None:
-        ep_nfo = bool(config.EXPORT_EP_NFO)
-    if images is None:
-        images = bool(config.EXPORT_IMAGES)
+    nfo = bool(nfo)
+    ep_nfo = bool(ep_nfo)
+    images = bool(images)
 
     root = os.path.abspath(root or config.STRM_ROOT)
     os.makedirs(root, exist_ok=True)

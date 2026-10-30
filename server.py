@@ -236,8 +236,8 @@ def _job_sync_detail(limit, workers, sleep, changed=False):
     sync.log("详情同步结束：%d 部有分集，共 %d 条分集" % (s["videos_with_episodes"], s["episodes"]))
 
 
-def _job_strm(nfo, images, clean, types, limit):
-    strm.export(None, types or "", int(limit or 0), nfo, images, bool(clean))
+def _job_strm(nfo, images, clean, types, limit, ep_nfo=False):
+    strm.export(None, types or "", int(limit or 0), bool(nfo), bool(images), bool(clean), bool(ep_nfo))
 
 
 def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=None, images=None, clean=False):
@@ -282,9 +282,9 @@ def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=None
                          sleep=config.DETAIL_SLEEP, changed=True)
 
         if export:
-            sync.log("③ 导出 STRM")
-            # 自动流程里开启 clean：清掉库里已不存在的 .strm，保证磁盘数量与库一致
-            strm.export(None, types or "", 0, nfo, images, True)
+            sync.log("③ 导出 STRM（只写 .strm，不含 NFO / 海报）")
+            # 自动流程只写 .strm；开启 clean 清掉库里已不存在的文件，保证磁盘数量与库一致
+            strm.export(None, types or "", 0, False, False, True)
 
         st = db.stats()
         sync.log("全流程完成：剧集 %d 部（%d 部有分集），分集 %d 条"
@@ -707,7 +707,10 @@ def api_settings_post():
 
     regen = bool(d.get("regen_strm"))
     if regen:
-        job.start("重新导出 STRM", lambda: _job_strm(None, None, False, "", 0))
+        nfo = bool(d.get("nfo"))
+        images = bool(d.get("images"))
+        ep_nfo = bool(d.get("ep_nfo"))
+        job.start("重新导出 STRM", lambda: _job_strm(nfo, images, False, "", 0, ep_nfo))
     return jsonify({
         "ok": True,
         "settings": {"public_base": settings.public_base()},

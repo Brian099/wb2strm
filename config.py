@@ -67,13 +67,8 @@ DEFAULT_QUALITY = int(os.environ.get("JP_DEFAULT_QUALITY", "1080"))
 RELAY = int(os.environ.get("JP_RELAY", "1"))
 
 # ---------------- 导出参数 ----------------
-# 是否生成 NFO 元数据（tvshow.nfo / movie.nfo，每部剧 1 个，很便宜）
-EXPORT_NFO = int(os.environ.get("JP_EXPORT_NFO", "1"))
-# 是否给每一集单独生成 .nfo（每集 1 个文件，几十万集时很慢，默认关）
-EXPORT_EP_NFO = int(os.environ.get("JP_EXPORT_EP_NFO", "0"))
-# 是否下载海报/背景图（每部剧 1 次请求，并行下载）
-EXPORT_IMAGES = int(os.environ.get("JP_EXPORT_IMAGES", "1"))
-# 图片下载并发
+# 自动导出只写 .strm；NFO / 海报只在手动「重新生成 STRM」时按需勾选
+# 图片下载并发（手动勾选海报时生效）
 IMAGE_WORKERS = int(os.environ.get("JP_IMAGE_WORKERS", "8"))
 
 # ---------------- 同步参数（全部走环境变量，写进 compose 即可） ----------------
