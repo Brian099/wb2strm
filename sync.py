@@ -125,6 +125,7 @@ def sync_list(api, types, years, areas, limit=0, sleep=0.15, force=False, max_pa
 
     total_pages = sum(p for _, _, po in plan for _, p in po)
     page_done = 0
+    page_failed = 0
     done = 0
     progress("同步目录", 0, total_pages)
 
@@ -134,7 +135,7 @@ def sync_list(api, types, years, areas, limit=0, sleep=0.15, force=False, max_pa
                 if limit and done >= limit:
                     log("达到上限 %d 条，停止列表同步" % limit)
                     progress("同步目录", page_done, total_pages)
-                    return done
+                    return {"rows": done, "pages": total_pages, "failed": page_failed, "complete": False}
                 key = "list:%s:%s:%s:%s" % (tid, kw.get("year"), kw.get("area"), pg)
                 if not force and db.get_state(key) == "1":
                     page_done += 1
@@ -145,6 +146,7 @@ def sync_list(api, types, years, areas, limit=0, sleep=0.15, force=False, max_pa
                 except JPError as e:
                     log("  列表失败 %s p%d: %s" % (tid, pg, e))
                     _stat["fail"] += 1
+                    page_failed += 1
                     page_done += 1
                     progress("同步目录", page_done, total_pages)
                     continue
@@ -158,7 +160,10 @@ def sync_list(api, types, years, areas, limit=0, sleep=0.15, force=False, max_pa
                 page_done += 1
                 progress("同步目录", page_done, total_pages)
                 time.sleep(sleep)
-    return done
+
+    # 只有「没限页数 + 没有失败页」才算扫全（限页数的增量永远不算）
+    complete = (page_failed == 0 and page_done >= total_pages and not max_pages)
+    return {"rows": done, "pages": total_pages, "failed": page_failed, "complete": complete}
 
 
 # ------------------------------------------------------------------ 详情

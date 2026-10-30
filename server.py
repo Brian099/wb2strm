@@ -243,8 +243,9 @@ def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=True
     空库时自动全量（扫全部页），有数据时走增量（每片 config.PAGES 页）。
     """
     st0 = db.stats()
+    full_mode = not settings.catalog_complete()   # 目录还没扫全 -> 继续全量
     if pages is None:
-        pages = 0 if st0["videos"] == 0 else config.PAGES
+        pages = 0 if full_mode else config.PAGES
     if workers is None:
         workers = config.WORKERS
 
@@ -257,12 +258,18 @@ def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=True
         years = sync._filter_values(filters, "yearList")
         areas = sync._filter_values(filters, "districtList")
 
-        if st0["videos"] == 0:
-            sync.log("① 同步目录：空库，执行全量抓取")
+        if full_mode:
+            sync.log("① 同步目录：目录尚未完整扫过，继续全量抓取（断点续爬，已有的页会跳过）")
         else:
             sync.log("① 同步目录：增量，每片最多 %s 页" % (pages or "全部"))
-        sync.sync_list(a, sel, years, areas, limit=int(limit or 0), sleep=0.15,
-                       force=True, max_pages=int(pages or 0))
+        res = sync.sync_list(a, sel, years, areas, limit=int(limit or 0), sleep=0.15,
+                             force=not full_mode, max_pages=int(pages or 0))
+        if full_mode:
+            if res.get("complete"):
+                settings.set_catalog_complete(True)
+                sync.log("   目录首次全量完成（共 %d 页），之后转入增量模式" % res.get("pages", 0))
+            else:
+                sync.log("   目录仍未扫全：失败 %d 页，下次启动会继续补" % res.get("failed", 0))
 
         sync.log("② 同步分集：新增 + 状态变化，并发 %s" % workers)
         sync.sync_detail(a, limit=0, workers=int(workers or 3), sleep=0.1, changed=True)
@@ -513,6 +520,7 @@ def api_stats():
     s["source_host"] = settings.source_host()
     s["job"] = job.snapshot()
     s["strm_count"] = settings.strm_count()
+    s["catalog_complete"] = settings.catalog_complete()
     s["last_finish"] = settings.last_finish()
     s["next_run"] = scheduler.next_run_at()
     s["interval_hours"] = config.INTERVAL_HOURS

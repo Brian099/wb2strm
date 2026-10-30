@@ -352,6 +352,9 @@
       row.appendChild(box);
     });
     renderNextRun(d.next_run, d.interval_hours, d.last_finish);
+    $("modeText").textContent = d.catalog_complete
+      ? "目录：已完整抓取，当前为增量模式"
+      : "目录：首次全量抓取中（可随时中断，重启会接着抓）";
   }
 
   function renderJob(j) {

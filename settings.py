@@ -15,6 +15,7 @@ _DEFAULTS = {
     "public_base": config.PUBLIC_BASE,
     "last_finish": "0",      # 上一次全流程跑完的时间戳，用于算下次更新
     "strm_count": "0",       # 最近一次导出后的 .strm 数量
+    "catalog_complete": "0", # 目录是否已完整扫过一遍（0=还没，需继续全量）
 }
 
 _lock = threading.Lock()
@@ -82,6 +83,15 @@ def last_finish():
 
 def mark_finished():
     db.set_setting("last_finish", str(__import__("time").time().__int__()))
+    invalidate()
+
+
+def catalog_complete():
+    return get_int("catalog_complete", 0) == 1
+
+
+def set_catalog_complete(done=True):
+    db.set_setting("catalog_complete", "1" if done else "0")
     invalidate()
 
 
