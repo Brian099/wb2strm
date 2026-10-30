@@ -73,7 +73,7 @@ def public_base():
 
 
 def source_host():
-    """固定为配置里的站点，不对外暴露。"""
+    """被抓取的站点地址，来自环境变量 JP_HOST（换域名只改 compose）。"""
     return config.HOST.rstrip("/")
 
 

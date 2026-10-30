@@ -334,9 +334,14 @@ Kodi：直接添加 `strm` 目录为视频源即可。
 | `JP_STRM_ROOT` | `strm` | STRM 导出根目录 |
 | `JP_CACHE_TTL` | `1800` | 取流缓存秒数 |
 | `JP_DEFAULT_QUALITY` | `1080` | 默认清晰度 |
-| `JP_PUBLIC_BASE` | `http://127.0.0.1:8989` | 服务地址的**首次默认值**，之后以界面保存的为准 |
+| `JP_PUBLIC_BASE` | `http://127.0.0.1:8989` | **本服务自己的地址**（写进 .strm），首次默认值，之后以界面保存的为准 |
+| `JP_HOST` | `https://www.jiabaide.cn` | **被抓取的站点地址**，换域名只改这里 |
+| `JP_APP_KEY` | 内置 | 接口签名密钥，报「应用签名失败」时更新 |
 
-> 站点地址和签名密钥写死在 `config.py`（`HOST` / `APP_KEY`），本项目只服务这一个站点，不做多站适配。
+> 注意区分两个地址：`JP_HOST` 是**去哪抓**，`JP_PUBLIC_BASE` 是**本服务在哪**（写进 .strm 供播放器访问）。
+>
+> 站点换域名时：改 `JP_HOST` → `docker compose up -d` 重启即可，数据库和 strm 都不用动。
+> 如果换域名后日志里出现 `应用签名失败`，说明密钥也换了，需要从新站前端 bundle 里找新的 `APP_KEY` 填到 `JP_APP_KEY`。
 
 ## 常见问题
 

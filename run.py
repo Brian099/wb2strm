@@ -6,6 +6,7 @@
 """
 import config
 import db
+import settings
 from server import app, scheduler
 
 
@@ -16,6 +17,7 @@ def main():
     print("=" * 56, flush=True)
     print("界面      http://127.0.0.1:%d/" % port, flush=True)
     print("对外地址  %s   <- .strm 里写这个，必须是播放器能访问的地址" % config.PUBLIC_BASE, flush=True)
+    print("抓取站点  %s" % settings.source_host(), flush=True)
     print("数据库    %s" % config.DB_PATH, flush=True)
     print("STRM 目录 %s" % config.STRM_ROOT, flush=True)
     print("取流缓存  %d 秒" % config.PLAY_CACHE_TTL, flush=True)

@@ -258,6 +258,7 @@ def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=True
         years = sync._filter_values(filters, "yearList")
         areas = sync._filter_values(filters, "districtList")
 
+        sync.log("站点：%s" % settings.source_host())
         if full_mode:
             why = "JP_FORCE_FULL=1 强制全量" if config.FORCE_FULL else "目录尚未完整扫过"
             sync.log("① 同步目录：%s，全量抓取（断点续爬，已有的页会跳过）" % why)

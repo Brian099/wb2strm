@@ -10,6 +10,11 @@ services:
       - "8989:8989"
     environment:
       TZ: Asia/Shanghai
+      # ---- 站点（换域名只改这里，重启容器即可）----
+      # 注意：JP_PUBLIC_BASE 是「本服务自己的地址」，JP_HOST 是「被抓取的站点地址」，别搞混
+      JP_HOST: "https://www.jiabaide.cn"
+      # 接口签名密钥，站点前端 bundle 里能查到；换域名/改版后如果报「应用签名失败」就更新这里
+      JP_APP_KEY: "cb808529bae6b6be45ecfab29a4889bc"
       # ---- 服务地址（首次启动的默认值）----
       # 写进 .strm 的地址，填**宿主机局域网 IP**，内网不管影视软件装在宿主机还是容器都能用。
       # 之后在运维页改会覆盖这里的值（存数据库），改完点「保存并重新生成 STRM」。
