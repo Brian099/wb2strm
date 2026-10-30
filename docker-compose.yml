@@ -26,6 +26,8 @@ services:
       JP_INTERVAL_HOURS: "24"
       # 启动后是否立刻跑一次（1=是，0=等第一个间隔到期）
       JP_BOOTSTRAP: "1"
+      # 怀疑目录没抓全时设为 1：按全量跑一轮（断点续爬，不重复抓），跑完自动标记完成
+      JP_FORCE_FULL: "0"
       # 默认清晰度
       JP_DEFAULT_QUALITY: "1080"
       # 访问令牌：留空=不鉴权；非空时界面和接口都要带 ?token=xxx

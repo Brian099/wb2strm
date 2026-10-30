@@ -47,3 +47,6 @@ DETAIL_SLEEP = float(os.environ.get("JP_DETAIL_SLEEP", "0.3"))
 INTERVAL_HOURS = float(os.environ.get("JP_INTERVAL_HOURS", "24"))
 # 启动后是否立刻跑一次（默认开启；设为 0 则等第一个间隔到期）
 BOOTSTRAP = int(os.environ.get("JP_BOOTSTRAP", "1"))
+# 强制按「全量」跑一轮（怀疑目录不全时用；全量是断点续爬，抓过的页会跳过，
+# 跑完会自动打上「已扫全」标记，之后即便保留该开关也几乎不耗时）
+FORCE_FULL = int(os.environ.get("JP_FORCE_FULL", "0"))

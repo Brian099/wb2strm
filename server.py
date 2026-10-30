@@ -243,7 +243,7 @@ def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=True
     空库时自动全量（扫全部页），有数据时走增量（每片 config.PAGES 页）。
     """
     st0 = db.stats()
-    full_mode = not settings.catalog_complete()   # 目录还没扫全 -> 继续全量
+    full_mode = bool(config.FORCE_FULL) or not settings.catalog_complete()   # 未扫全 或 强制全量
     if pages is None:
         pages = 0 if full_mode else config.PAGES
     if workers is None:
@@ -259,7 +259,8 @@ def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=True
         areas = sync._filter_values(filters, "districtList")
 
         if full_mode:
-            sync.log("① 同步目录：目录尚未完整扫过，继续全量抓取（断点续爬，已有的页会跳过）")
+            why = "JP_FORCE_FULL=1 强制全量" if config.FORCE_FULL else "目录尚未完整扫过"
+            sync.log("① 同步目录：%s，全量抓取（断点续爬，已有的页会跳过）" % why)
         else:
             sync.log("① 同步目录：增量，每片最多 %s 页" % (pages or "全部"))
         res = sync.sync_list(a, sel, years, areas, limit=int(limit or 0),
