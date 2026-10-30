@@ -25,9 +25,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 国内网络慢就换成镜像源：
 # RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 
-# 再拷代码
-COPY config.py jpapi.py db.py sync.py strm.py server.py run.py ./
+# 再拷代码（用通配符，避免新增模块时漏拷）
+COPY *.py ./
 COPY web ./web
+
+# 构建期自检：所有模块能导入，否则构建直接失败（而不是运行时报 ModuleNotFoundError）
+RUN python -c "import config, settings, db, jpapi, sync, strm, server"
 
 RUN mkdir -p /app/data /app/strm
 
