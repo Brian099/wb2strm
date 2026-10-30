@@ -61,6 +61,11 @@ ACCESS_TOKEN = os.environ.get("JP_TOKEN", "")
 PLAY_CACHE_TTL = int(os.environ.get("JP_CACHE_TTL", "1800"))
 DEFAULT_QUALITY = int(os.environ.get("JP_DEFAULT_QUALITY", "1080"))
 
+# 播放方式：1=中继（所有流量经本服务转发，兼容性最好）
+#           0=直连（302 跳转，省带宽；但 CDN 签名与请求 IP 绑定，
+#             只有和本服务同一出口 IP 的播放器能用）
+RELAY = int(os.environ.get("JP_RELAY", "1"))
+
 # ---------------- 同步参数（全部走环境变量，写进 compose 即可） ----------------
 # 列表接口 totalCount 被 10000 截顶（ES max_result_window），超过就按年份切片
 TOTAL_CAP = 10000

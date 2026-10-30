@@ -68,7 +68,8 @@ def safe_name(name, fallback="未命名"):
 
 
 def play_url(vod_id, nid):
-    u = "%s/play/%s/%s.m3u8" % (settings.public_base(), vod_id, nid)
+    path = "/relay" if config.RELAY else "/play"
+    u = "%s%s/%s/%s.m3u8" % (settings.public_base(), path, vod_id, nid)
     if config.ACCESS_TOKEN:
         u += "?token=" + config.ACCESS_TOKEN
     return u

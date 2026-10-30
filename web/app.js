@@ -5,6 +5,7 @@
   const TOKEN = new URLSearchParams(location.search).get("token") || "";
   const PAGE_SIZE = 60;
   const state = { cat: "", year: "", q: "", page: 1, total: 0 };
+  let relayMode = true;   // 由 /api/stats 决定：true 走中继，false 走 302
   let currentVideo = null;
   let hls = null;
   let jobTimer = null;
@@ -246,7 +247,8 @@
   }
 
   function buildPlayUrl(vid, nid, q) {
-    let u = location.origin + "/play/" + encodeURIComponent(vid) + "/" + encodeURIComponent(nid) + ".m3u8";
+    const prefix = relayMode ? "/relay/" : "/play/";
+    let u = location.origin + prefix + encodeURIComponent(vid) + "/" + encodeURIComponent(nid) + ".m3u8";
     const qs = [];
     if (q) qs.push("q=" + q);
     if (TOKEN) qs.push("token=" + encodeURIComponent(TOKEN));
@@ -351,6 +353,7 @@
       box.appendChild(el("div", "l", l));
       row.appendChild(box);
     });
+    relayMode = d.relay !== false;
     renderNextRun(d.next_run, d.interval_hours, d.last_finish);
     const site = d.source_host || "—";
     $("modeText").textContent = "站点：" + site + " · " + (d.catalog_complete

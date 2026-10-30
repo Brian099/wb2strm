@@ -234,7 +234,8 @@ python sync.py detail --workers 4   # 补分集
 |---|---|---|
 | GET | `/` | 前端界面 |
 | GET | `/play/<vod_id>/<nid>.m3u8` | **302** 跳转到最新有效地址（`.strm` 里写这个） |
-| GET | `/proxy/<vod_id>/<nid>.m3u8` | 拉取 m3u8 并把分片地址改成绝对路径（给不跟随 302 的播放器） |
+| GET | `/relay/<vod_id>/<nid>.m3u8` | **中继播放（默认）**：m3u8 与分片全部经本服务转发 |
+| GET | `/proxy/<vod_id>/<nid>.m3u8` | 只代理 m3u8 播放列表（分片仍由客户端直连 CDN） |
 | GET | `/api/play/<vod_id>/<nid>` | JSON：`url / quality / expires_in` |
 | GET | `/api/videos?cat=&year=&q=&limit=&offset=` | 本地库列表（返回 total 供分页） |
 | GET | `/api/video/<vod_id>` | 详情 + 分集清单（含每集播放地址） |
@@ -249,6 +250,34 @@ python sync.py detail --workers 4   # 补分集
 | GET | `/health` | 健康检查 |
 
 清晰度：`?q=1080|720|480`，不传则取最高。
+
+## 两种播放方式
+
+`JP_RELAY` 控制 `.strm` 里写哪种地址：
+
+| 模式 | `.strm` 里的地址 | 流量走向 | 适用 |
+|---|---|---|---|
+| **中继（默认，`JP_RELAY=1`）** | `/relay/<vid>/<nid>.m3u8` | 客户端 → 本服务 → CDN | **都能用**，但视频流量走本服务转发 |
+| 直连（`JP_RELAY=0`） | `/play/<vid>/<nid>.m3u8` | 客户端 302 到 CDN 直连 | 省带宽，但见下面的限制 |
+
+### 为什么默认用中继
+
+CDN 的 `auth_key` 签名**与请求方 IP 绑定**：
+
+```
+本服务（NAS）→ 调接口拿签名 → 签名绑定 NAS 的出口 IP
+播放器（电视/手机）→ 拿这个签名去 CDN → IP 不匹配 → 403 Forbidden
+```
+
+实测同一张签名地址：NAS 自己拉 → `200`，从别的 IP 拉 → `403`。
+
+所以只要播放器的出口 IP 和本服务不一致（远程播放、NAS 走代理/VPN、多 WAN 等），
+直连模式必然失败。中继模式由本服务统一取流，客户端只跟本服务打交道，就不受这个限制。
+
+**代价**：视频流量要经过本服务（下行 CDN + 上行客户端）。局域网播放无感，
+外网播放会占用本服务的上行带宽。
+
+想省带宽、且确认播放器与本服务同出口 IP 时，可以设 `JP_RELAY: "0"`。
 
 ## 外网播放
 
@@ -335,6 +364,7 @@ Kodi：直接添加 `strm` 目录为视频源即可。
 | `JP_DB` | `data/wb2strm.db` | 数据库路径 |
 | `JP_STRM_ROOT` | `strm` | STRM 导出根目录 |
 | `JP_CACHE_TTL` | `1800` | 取流缓存秒数 |
+| `JP_RELAY` | `1` | 播放方式：1=中继（推荐），0=302 直连 |
 | `JP_DEFAULT_QUALITY` | `1080` | 默认清晰度 |
 | `JP_PUBLIC_BASE` | `http://127.0.0.1:8989` | **本服务自己的地址**（写进 .strm），首次默认值，之后以界面保存的为准 |
 | `JP_HOST` | **必填** | **被抓取的站点地址**，换域名只改这里 |

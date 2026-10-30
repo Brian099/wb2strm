@@ -16,7 +16,10 @@
 
 启动：python server.py
 """
+import base64
 import collections
+import hashlib
+import hmac
 import os
 import re
 import threading
@@ -25,7 +28,7 @@ from urllib.parse import urljoin
 
 import requests
 import urllib3
-from flask import Flask, Response, jsonify, redirect, request, send_from_directory
+from flask import Flask, Response, jsonify, redirect, request, send_from_directory, stream_with_context
 
 import config
 import db
@@ -456,6 +459,106 @@ def proxy(vid, nid):
     return resp
 
 
+# ------------------------------------------------------------------ 中继（推荐播放方式）
+# CDN 的 auth_key 签名与「请求方 IP」绑定：签名是本服务去要的，所以只有本服务
+# 自己（同一出口 IP）能拉。别的设备直连必然 403，必须由本服务转发。
+
+
+def _seg_key():
+    return (config.APP_KEY or "wb2strm").encode("utf-8")
+
+
+def _seg_token(url):
+    raw = base64.urlsafe_b64encode(url.encode("utf-8")).decode("ascii").rstrip("=")
+    sig = hmac.new(_seg_key(), url.encode("utf-8"), hashlib.sha256).hexdigest()[:16]
+    return raw + "." + sig
+
+
+def _seg_url(token):
+    try:
+        raw, sig = token.rsplit(".", 1)
+        url = base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)).decode("utf-8")
+        want = hmac.new(_seg_key(), url.encode("utf-8"), hashlib.sha256).hexdigest()[:16]
+        if not hmac.compare_digest(sig, want):
+            return ""
+        if not url.lower().startswith("http"):
+            return ""
+        return url
+    except Exception:
+        return ""
+
+
+def _relay_link(url):
+    return "/relay/seg?u=" + _seg_token(url)
+
+
+@app.route("/relay/<vid>/<nid>.m3u8")
+@app.route("/relay/<vid>/<nid>")
+def relay_playlist(vid, nid):
+    """把 m3u8 里的分片地址改写成本服务的中继地址，客户端全程只跟本服务打交道。"""
+    want = int(request.args.get("q") or 0)
+    try:
+        item, _ = resolve(vid, nid, want)
+    except JPError as e:
+        return jsonify({"ok": False, "error": str(e)}), 502
+    if not item:
+        return jsonify({"ok": False, "error": "no url"}), 502
+
+    src = item["url"]
+    try:
+        r = requests.get(src, timeout=25, verify=False,
+                         headers={"User-Agent": config.UA, "Referer": config.HOST + "/"})
+        if r.status_code != 200:
+            cache.drop("%s|%s" % (vid, nid))
+            return jsonify({"ok": False, "error": "upstream %s" % r.status_code}), 502
+    except Exception as e:
+        cache.drop("%s|%s" % (vid, nid))
+        return jsonify({"ok": False, "error": repr(e)}), 502
+
+    base = src.rsplit("/", 1)[0] + "/"
+    out = []
+    for line in r.text.splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        if s.startswith("#"):
+            if 'URI="' in s:
+                s = re.sub(r'URI="([^"]+)"',
+                           lambda m: 'URI="%s"' % _relay_link(urljoin(base, m.group(1))), s)
+            out.append(s)
+        else:
+            out.append(_relay_link(urljoin(base, s)))
+    resp = Response("\n".join(out) + "\n", mimetype="application/vnd.apple.mpegurl")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.route("/relay/seg")
+def relay_segment():
+    """分片中继：按签名取回原始分片地址，由本服务转发。支持 Range。"""
+    url = _seg_url(request.args.get("u", ""))
+    if not url:
+        return jsonify({"ok": False, "error": "bad token"}), 400
+    headers = {"User-Agent": config.UA, "Referer": config.HOST + "/"}
+    rng = request.headers.get("Range")
+    if rng:
+        headers["Range"] = rng
+    try:
+        r = requests.get(url, timeout=40, verify=False, headers=headers, stream=True)
+    except Exception as e:
+        return jsonify({"ok": False, "error": repr(e)}), 502
+    if r.status_code not in (200, 206):
+        return jsonify({"ok": False, "error": "upstream %s" % r.status_code}), 502
+
+    resp = Response(stream_with_context(r.iter_content(65536)), status=r.status_code)
+    resp.headers["Content-Type"] = r.headers.get("Content-Type", "video/mp2t")
+    for h in ("Content-Length", "Content-Range", "Accept-Ranges"):
+        if h in r.headers:
+            resp.headers[h] = r.headers[h]
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 # ------------------------------------------------------------------ 数据接口
 @app.route("/api/play/<vid>/<nid>")
 def api_play(vid, nid):
@@ -525,6 +628,7 @@ def api_stats():
     s["job"] = job.snapshot()
     s["strm_count"] = settings.strm_count()
     s["catalog_complete"] = settings.catalog_complete()
+    s["relay"] = bool(config.RELAY)
     s["last_finish"] = settings.last_finish()
     s["next_run"] = scheduler.next_run_at()
     s["interval_hours"] = config.INTERVAL_HOURS
