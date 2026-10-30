@@ -30,6 +30,16 @@ _BAD = re.compile(r'[\\/:*?"<>|\r\n\t]')
 
 # 供 server 的运维任务把日志接到前端
 LOG_SINK = None
+# 进度回调：PROGRESS(阶段, 已完成, 总数)
+PROGRESS = None
+
+
+def progress(phase, done, total):
+    if PROGRESS:
+        try:
+            PROGRESS(phase, int(done), int(total))
+        except Exception:
+            pass
 
 
 def log(msg):
@@ -161,14 +171,21 @@ def export(root=None, types="", limit=0, nfo=False, images=False, clean=False):
     if want_types:
         videos = [v for v in videos if v["type_id"] in want_types]
 
+    jobs = []
+    for v in videos:
+        eps = db.get_episodes(v["vod_id"])
+        if eps:
+            jobs.append((v, eps))
+
     total_files = written = 0
     now_manifest = {}
     used_dirs = {}
+    total_jobs = len(jobs)
+    progress("导出 STRM", 0, total_jobs)
 
-    for v in videos:
-        eps = db.get_episodes(v["vod_id"])
-        if not eps:
-            continue
+    for idx, (v, eps) in enumerate(jobs, 1):
+        if idx % 20 == 0 or idx == total_jobs:
+            progress("导出 STRM", idx, total_jobs)
         type_dir = safe_name(v.get("cat") or v.get("type_name") or "未分类")
         title = safe_name(v["name"] or v["vod_id"])
         year = safe_name(v["year"] or "")
@@ -232,6 +249,9 @@ def export(root=None, types="", limit=0, nfo=False, images=False, clean=False):
 
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(now_manifest, f, ensure_ascii=False)
+
+    settings.set_strm_count(total_files)
+    progress("导出 STRM", total_jobs, total_jobs)
 
     result = {"files": total_files, "written": written, "removed": removed, "root": root}
     log("导出完成：共 %d 个 .strm（新写/更新 %d 个），删除 %d 个 -> %s"

@@ -312,8 +312,25 @@
   }
 
   // ---------------------------------------------------------------- 运维
-  let opsActive = false;      // 是否停留在运维页（决定空闲时要不要继续轮询）
-  let lastSettled = "";       // 上一次已处理过的任务结束标记，避免重复刷新
+  let opsActive = false;
+  let settings = {};
+
+  function fmtTime(ts) {
+    if (!ts) return "—";
+    const d = new Date(ts * 1000);
+    const p2 = (x) => String(x).padStart(2, "0");
+    return d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) +
+      " " + p2(d.getHours()) + ":" + p2(d.getMinutes());
+  }
+
+  function renderNextRun(ts, hours, last) {
+    const box = $("nextRunInfo");
+    if (!ts) {
+      box.textContent = "下次更新：未安排";
+      return;
+    }
+    box.textContent = "下次更新：" + fmtTime(ts) + "（每 " + hours + " 小时，上次完成 " + fmtTime(last) + "）";
+  }
 
   async function loadStats() {
     let d;
@@ -324,18 +341,17 @@
     }
     const row = $("stats");
     row.innerHTML = "";
-    const items = [
-      [d.videos, "剧集总数"],
-      [d.videos_with_episodes, "已抓分集"],
-      [d.episodes, "分集总数"],
-      [d.play_cache, "取流缓存"],
-    ];
-    items.forEach(([n, l]) => {
+    [
+      [d.videos, "入库剧集"],
+      [d.episodes, "分集"],
+      [d.strm_count, "STRM 文件"],
+    ].forEach(([n, l]) => {
       const box = el("div", "stat");
       box.appendChild(el("div", "n", String(n)));
       box.appendChild(el("div", "l", l));
       row.appendChild(box);
     });
+    renderNextRun(d.next_run, d.interval_hours, d.last_finish);
   }
 
   function renderJob(j) {
@@ -345,31 +361,29 @@
     if (j.running) {
       txt = j.kind + " 进行中… 已运行 " + j.elapsed + " 秒";
     } else if (j.finished) {
-      txt = j.kind + " " + (j.ok ? "完成" : "失败") + "，耗时 " + j.elapsed + " 秒" + (j.error ? "（" + j.error + "）" : "");
+      txt = j.kind + " " + (j.ok ? "完成" : "失败") + "，耗时 " + j.elapsed + " 秒" +
+        (j.error ? "（" + j.error + "）" : "");
     }
     $("jobState").textContent = txt;
 
+    const p = j.progress || {};
+    const total = Number(p.total || 0);
+    const done = Number(p.done || 0);
+    const pct = total > 0 ? Math.min(100, Math.round(done * 100 / total)) : 0;
+    $("progBar").style.width = pct + "%";
+    $("progText").textContent = total > 0
+      ? (p.phase || "") + "  " + done + " / " + total + "（" + pct + "%）"
+      : (j.running ? "准备中…" : "");
+
     const box = $("logbox");
     if (j.logs && j.logs.length) {
-      // 只有原本就贴在底部时才自动滚到底，避免打断向上翻日志
       const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
       box.innerHTML = "";
       j.logs.forEach((line) => {
-        box.appendChild(el("div", /\[ERR\]|失败|error/i.test(line) ? "err" : "", line));
+        box.appendChild(el("div", /\[ERR\]|失败|错误|error/i.test(line) ? "err" : "", line));
       });
       if (atBottom) box.scrollTop = box.scrollHeight;
     }
-
-    ["btnList", "btnDetail", "btnStrm", "btnAll", "btnSaveRegen"].forEach((id) => ($(id).disabled = !!j.running));
-  }
-
-  // 任务刚结束时刷新分类计数和列表（新片才会出现在浏览页）
-  function onJobSettled(j) {
-    if (!j.finished) return;
-    const key = (j.kind || "") + "|" + j.finished;
-    if (key === lastSettled) return;
-    lastSettled = key;
-    loadTypes().then(loadList);
   }
 
   async function pollJob() {
@@ -382,29 +396,10 @@
       return;
     }
     renderJob(d.job);
-    await loadStats();                       // 运行中统计数字也实时增长
-    if (d.job.running) {
-      jobTimer = setTimeout(pollJob, 2000);
-    } else {
-      onJobSettled(d.job);
-      if (opsActive) jobTimer = setTimeout(pollJob, 10000);   // 空闲时轻量轮询，容器/命令行改动也能看到
-    }
+    await loadStats();
+    if (d.job.running) jobTimer = setTimeout(pollJob, 2000);
+    else if (opsActive) jobTimer = setTimeout(pollJob, 10000);
   }
-
-  // ---------------------------------------------------------------- 设置
-  function renderNextRun(ts) {
-    const box = $("nextRunInfo");
-    if (!ts) {
-      box.textContent = "定时自动更新：未开启";
-      return;
-    }
-    const t = new Date(ts * 1000);
-    box.textContent = "下次自动更新：" + t.toLocaleString() +
-      "（每 " + $("setAutoHours").value + " 小时，上次 " +
-      (Number(settings.last_auto_run || 0) ? new Date(Number(settings.last_auto_run) * 1000).toLocaleString() : "从未") + "）";
-  }
-
-  let settings = {};
 
   async function loadSettings() {
     let d;
@@ -415,46 +410,19 @@
     }
     settings = d.settings || {};
     $("setPublicBase").value = settings.public_base || "";
-    $("setSourceHost").value = settings.source_host || "";
-    $("setCacheTtl").value = settings.cache_ttl || "1800";
-    $("setAutoEnabled").checked = settings.auto_enabled === "1";
-    $("setAutoHours").value = settings.auto_hours || "24";
-    $("setAutoPages").value = settings.auto_pages || "5";
-    $("setAutoWorkers").value = settings.auto_workers || "3";
-    $("setAutoExport").checked = settings.auto_export === "1";
-    renderNextRun(d.next_run);
   }
 
-  async function saveSettings(regen) {
-    const body = {
+  async function saveRegen() {
+    const r = await post("/api/settings", {
       public_base: $("setPublicBase").value.trim(),
-      source_host: $("setSourceHost").value.trim(),
-      cache_ttl: $("setCacheTtl").value.trim(),
-      auto_enabled: $("setAutoEnabled").checked ? "1" : "0",
-      auto_hours: $("setAutoHours").value.trim(),
-      auto_pages: $("setAutoPages").value.trim(),
-      auto_workers: $("setAutoWorkers").value.trim(),
-      auto_export: $("setAutoExport").checked ? "1" : "0",
-      regen_strm: !!regen,
-    };
-    const r = await post("/api/settings", body);
+      regen_strm: true,
+    });
     if (!r.ok || !r.data.ok) {
       toast((r.data && r.data.error) || "保存失败");
       return;
     }
     toast(r.data.msg || "已保存");
     await loadSettings();
-    if (regen) pollJob();
-  }
-
-  async function startJob(path, body, label) {
-    const r = await post(path, body);
-    if (!r.ok || !r.data.ok) {
-      toast(r.data.msg || r.data.error || "启动失败");
-      return;
-    }
-    toast(label + " 已启动");
-    clearTimeout(jobTimer);
     pollJob();
   }
 
@@ -520,43 +488,7 @@
       }
     });
 
-    $("btnList").onclick = () =>
-      startJob("/api/job/sync", {
-        mode: "list",
-        types: $("syncTypes").value.trim(),
-        limit: Number($("syncLimit").value || 0),
-        force: $("syncForce").checked,
-        pages: Number($("syncPages").value || 0),
-      }, "同步目录");
-
-    $("btnDetail").onclick = () =>
-      startJob("/api/job/sync", {
-        mode: "detail",
-        limit: Number($("detLimit").value || 0),
-        workers: Number($("detWorkers").value || 4),
-        changed: $("detChanged").checked,
-      }, "同步分集");
-
-    $("btnStrm").onclick = () =>
-      startJob("/api/job/strm", {
-        nfo: $("strmNfo").checked,
-        images: $("strmImg").checked,
-        clean: $("strmClean").checked,
-        types: $("strmTypes").value.trim(),
-      }, "导出 STRM");
-
-    $("btnAll").onclick = () =>
-      startJob("/api/job/all", {
-        types: $("allTypes").value.trim(),
-        pages: Number($("allPages").value || 0),
-        workers: Number($("allWorkers").value || 3),
-        export: $("allExport").checked,
-        nfo: $("allNfo").checked,
-        images: $("allImages").checked,
-      }, "一键更新");
-
-    $("btnSaveSettings").onclick = () => saveSettings(false);
-    $("btnSaveRegen").onclick = () => saveSettings(true);
+    $("btnSaveRegen").onclick = saveRegen;
   }
 
   // ---------------------------------------------------------------- 启动

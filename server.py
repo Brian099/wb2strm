@@ -144,10 +144,15 @@ class JobState:
         self.ok = None
         self.error = ""
         self.logs = collections.deque(maxlen=1000)
+        self.progress = {"phase": "", "done": 0, "total": 0}
 
     def add(self, line):
         with self.lock:
             self.logs.append(str(line))
+
+    def set_progress(self, phase, done, total):
+        with self.lock:
+            self.progress = {"phase": str(phase), "done": int(done), "total": int(total)}
 
     def start(self, kind, fn):
         with self.lock:
@@ -160,6 +165,7 @@ class JobState:
             self.ok = None
             self.error = ""
             self.logs.clear()
+            self.progress = {"phase": "", "done": 0, "total": 0}
 
         def worker():
             try:
@@ -190,12 +196,15 @@ class JobState:
                 "ok": self.ok,
                 "error": self.error,
                 "logs": list(self.logs)[-400:],
+                "progress": dict(self.progress),
             }
 
 
 job = JobState()
 sync.LOG_SINK = job.add
 strm.LOG_SINK = job.add
+sync.PROGRESS = job.set_progress
+strm.PROGRESS = job.set_progress
 
 
 def _job_sync_list(types, limit, sleep, force=False, pages=0):
@@ -228,35 +237,56 @@ def _job_strm(nfo, images, clean, types, limit):
     strm.export(None, types or "", int(limit or 0), bool(nfo), bool(images), bool(clean))
 
 
-def _job_full(types="", pages=5, workers=3, limit=0, export=True, nfo=True, images=True, clean=False):
-    """一键全流程：① 同步目录（增量） -> ② 同步分集（新增+变化） -> ③ 导出 STRM"""
-    a = get_api()
-    all_types = a.types()
-    want = [x.strip() for x in str(types or "").split(",") if x.strip()]
-    sel = [t for t in all_types if not want or t["type_id"] in want]
-    filters = a.filters()
-    years = sync._filter_values(filters, "yearList")
-    areas = sync._filter_values(filters, "districtList")
+def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=True, images=True, clean=False):
+    """全流程：① 同步目录 -> ② 同步分集 -> ③ 导出 STRM
 
-    sync.log("① 同步目录：%s，每片最多 %s 页"
-             % ("、".join("%s(%s)" % (t["type_name"], t["type_id"]) for t in sel), pages or "全部"))
-    sync.sync_list(a, sel, years, areas, limit=int(limit or 0), sleep=0.15,
-                   force=True, max_pages=int(pages or 0))
+    空库时自动全量（扫全部页），有数据时走增量（每片 config.PAGES 页）。
+    """
+    st0 = db.stats()
+    if pages is None:
+        pages = 0 if st0["videos"] == 0 else config.PAGES
+    if workers is None:
+        workers = config.WORKERS
 
-    sync.log("② 同步分集：新增 + 状态变化，并发 %s" % workers)
-    sync.sync_detail(a, limit=0, workers=int(workers or 3), sleep=0.1, changed=True)
+    try:
+        a = get_api()
+        all_types = a.types()
+        want = [x.strip() for x in str(types or "").split(",") if x.strip()]
+        sel = [t for t in all_types if not want or t["type_id"] in want]
+        filters = a.filters()
+        years = sync._filter_values(filters, "yearList")
+        areas = sync._filter_values(filters, "districtList")
 
-    if export:
-        sync.log("③ 导出 STRM")
-        strm.export(None, types or "", 0, bool(nfo), bool(images), bool(clean))
+        if st0["videos"] == 0:
+            sync.log("① 同步目录：空库，执行全量抓取")
+        else:
+            sync.log("① 同步目录：增量，每片最多 %s 页" % (pages or "全部"))
+        sync.sync_list(a, sel, years, areas, limit=int(limit or 0), sleep=0.15,
+                       force=True, max_pages=int(pages or 0))
 
-    st = db.stats()
-    sync.log("全流程完成：剧集 %d 部（%d 部有分集），分集 %d 条"
-             % (st["videos"], st["videos_with_episodes"], st["episodes"]))
+        sync.log("② 同步分集：新增 + 状态变化，并发 %s" % workers)
+        sync.sync_detail(a, limit=0, workers=int(workers or 3), sleep=0.1, changed=True)
+
+        if export:
+            sync.log("③ 导出 STRM")
+            strm.export(None, types or "", 0, bool(nfo), bool(images), bool(clean))
+
+        st = db.stats()
+        sync.log("全流程完成：剧集 %d 部（%d 部有分集），分集 %d 条"
+                 % (st["videos"], st["videos_with_episodes"], st["episodes"]))
+        job.set_progress("空闲", 0, 0)
+        settings.mark_finished()
+    except Exception as e:
+        sync.log("[错误] 全流程失败：%r" % (e,))
+        # 失败后 30 分钟再重试（而不是等满一个间隔）
+        db.set_setting("last_finish",
+                       str(int(time.time() - config.INTERVAL_HOURS * 3600 + 1800)))
+        settings.invalidate()
+        raise
 
 
 class Scheduler(threading.Thread):
-    """按设置里的间隔自动跑增量更新（list -> detail -> strm）。"""
+    """开机跑一次，之后每隔 config.INTERVAL_HOURS 小时（从上一次跑完算起）再跑一次。"""
 
     def __init__(self):
         super().__init__(daemon=True, name="auto-sync")
@@ -266,12 +296,10 @@ class Scheduler(threading.Thread):
         self._stop.set()
 
     def next_run_at(self):
-        if not settings.get_int("auto_enabled", 0):
-            return 0
-        last = settings.get_int("last_auto_run", 0)
+        last = settings.last_finish()
         if not last:
-            return int(time.time()) + 30
-        return last + max(1, settings.get_int("auto_hours", 24)) * 3600
+            return int(time.time()) + 15 if config.BOOTSTRAP else 0
+        return int(last + config.INTERVAL_HOURS * 3600)
 
     def run(self):
         self._stop.wait(10)
@@ -283,23 +311,18 @@ class Scheduler(threading.Thread):
             self._stop.wait(60)
 
     def _tick(self):
-        if not settings.get_int("auto_enabled", 0):
-            return
-        nxt = self.next_run_at()
-        if nxt and time.time() < nxt:
-            return
         if job.running:
             return
-        db.set_setting("last_auto_run", str(int(time.time())))
-        settings.invalidate()
-        sync.log("[自动更新] 开始（间隔 %d 小时）" % settings.get_int("auto_hours", 24))
-        job.start("自动增量更新", lambda: _job_full(
-            types=settings.get("auto_types", ""),
-            pages=settings.get_int("auto_pages", 5),
-            workers=settings.get_int("auto_workers", 3),
-            export=settings.get_int("auto_export", 1) == 1,
-            nfo=True, images=True, clean=False,
-        ))
+        last = settings.last_finish()
+        if not last and not config.BOOTSTRAP:
+            return
+        if last and time.time() - last < config.INTERVAL_HOURS * 3600:
+            return
+        if not last:
+            sync.log("[自动更新] 首次启动，开始抓取")
+        else:
+            sync.log("[自动更新] 距上次完成已满 %g 小时，开始增量更新" % config.INTERVAL_HOURS)
+        job.start("自动更新", lambda: _job_full())
 
 
 scheduler = Scheduler()
@@ -488,11 +511,12 @@ def api_stats():
     s["public_base"] = settings.public_base()
     s["source_host"] = settings.source_host()
     s["job"] = job.snapshot()
-    s["auto"] = {
-        "enabled": settings.get_int("auto_enabled", 0) == 1,
-        "hours": settings.get_int("auto_hours", 24),
-        "next_run": scheduler.next_run_at(),
-    }
+    s["strm_count"] = settings.strm_count()
+    s["last_finish"] = settings.last_finish()
+    s["next_run"] = scheduler.next_run_at()
+    s["interval_hours"] = config.INTERVAL_HOURS
+    s["pages"] = config.PAGES
+    s["workers"] = config.WORKERS
     return jsonify({"ok": True, **s})
 
 
@@ -543,34 +567,33 @@ def api_job_all():
 
 @app.route("/api/settings", methods=["GET"])
 def api_settings_get():
-    v = settings.all_values()
-    v["last_auto_run"] = settings.get("last_auto_run", "0")
-    return jsonify({"ok": True, "settings": v, "next_run": scheduler.next_run_at()})
+    return jsonify({
+        "ok": True,
+        "settings": {"public_base": settings.public_base()},
+        "next_run": scheduler.next_run_at(),
+        "interval_hours": config.INTERVAL_HOURS,
+        "last_finish": settings.last_finish(),
+    })
 
 
 @app.route("/api/settings", methods=["POST"])
 def api_settings_post():
     d = request.get_json(silent=True) or {}
-    pairs = {k: v for k, v in d.items() if k in settings._DEFAULTS}
-
-    # 规范化地址
-    for k in ("public_base", "source_host"):
-        if k in pairs:
-            u = str(pairs[k] or "").strip().rstrip("/")
-            if u and not u.startswith("http"):
-                u = "http://" + u
-            pairs[k] = u
-
+    pairs = {}
+    if "public_base" in d:
+        u = str(d.get("public_base") or "").strip().rstrip("/")
+        if u and not u.startswith("http"):
+            u = "http://" + u
+        pairs["public_base"] = u
     settings.set_many(pairs)
-    cache.ttl = settings.cache_ttl()
-    global _api_host
-    _api_host = ""      # 强制下次重建接口客户端（源站域名可能变了）
+    cache.ttl = config.PLAY_CACHE_TTL
+
     regen = bool(d.get("regen_strm"))
     if regen:
         job.start("重新导出 STRM", lambda: _job_strm(True, True, False, "", 0))
     return jsonify({
         "ok": True,
-        "settings": settings.all_values(),
+        "settings": {"public_base": settings.public_base()},
         "regen": regen,
         "msg": "已保存" + ("，正在重新导出 STRM" if regen else ""),
     })

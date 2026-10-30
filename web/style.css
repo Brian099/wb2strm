@@ -418,6 +418,21 @@ video { width: 100%; max-height: 70vh; display: block; background: #000; }
   color: var(--text);
 }
 
+.progress {
+  height: 8px;
+  margin-top: 10px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width .35s ease;
+}
+
 .logbox {
   background: #0a0c10;
   border: 1px solid var(--line);

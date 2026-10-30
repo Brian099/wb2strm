@@ -1,27 +1,20 @@
 # -*- coding: utf-8 -*-
-"""运行时设置：存在数据库里，可在维护界面随时改，优先级高于环境变量。
+"""运行时设置。
 
-这样换服务地址（写进 .strm 的地址）或换源站域名时，不用改 compose / 重启容器，
-在界面上保存后重新导出 STRM 即可。
+只保留一项需要经常改的东西：**服务地址**（写进 .strm 的地址）。
+其他参数（页数、并发、间隔）全部走环境变量 / compose，不在这里。
+
+源站域名固定在 config.HOST —— 这个程序是给单一站点用的，不做多站适配。
 """
 import threading
 
 import config
 import db
 
-# 默认值（来自 config / 环境变量），数据库里没有对应 key 时用它
 _DEFAULTS = {
     "public_base": config.PUBLIC_BASE,
-    "source_host": config.HOST,
-    "cache_ttl": str(config.PLAY_CACHE_TTL),
-    # 自动更新
-    "auto_enabled": "0",
-    "auto_hours": "24",          # 每 N 小时跑一次
-    "auto_pages": "5",           # 增量：每个切片扫几页
-    "auto_workers": "3",         # 详情并发
-    "auto_export": "1",          # 跑完自动导出 STRM
-    "auto_types": "",            # 留空=全部分类
-    "last_auto_run": "0",
+    "last_finish": "0",      # 上一次全流程跑完的时间戳，用于算下次更新
+    "strm_count": "0",       # 最近一次导出后的 .strm 数量
 }
 
 _lock = threading.Lock()
@@ -68,7 +61,6 @@ def set_many(pairs):
 
 
 def all_values():
-    """返回完整设置（含默认值），供界面展示。"""
     out = dict(_DEFAULTS)
     out.update({k: v for k, v in _load().items() if v != ""})
     return out
@@ -80,8 +72,23 @@ def public_base():
 
 
 def source_host():
-    return str(get("source_host") or "").rstrip("/")
+    """固定为配置里的站点，不对外暴露。"""
+    return config.HOST.rstrip("/")
 
 
-def cache_ttl():
-    return max(60, get_int("cache_ttl", config.PLAY_CACHE_TTL))
+def last_finish():
+    return get_int("last_finish", 0)
+
+
+def mark_finished():
+    db.set_setting("last_finish", str(__import__("time").time().__int__()))
+    invalidate()
+
+
+def strm_count():
+    return get_int("strm_count", 0)
+
+
+def set_strm_count(n):
+    db.set_setting("strm_count", str(int(n)))
+    invalidate()

@@ -30,6 +30,16 @@ _TAG = re.compile(r"<[^>]*>")
 
 # 供 server 的运维任务把日志接到前端
 LOG_SINK = None
+# 进度回调：PROGRESS(阶段, 已完成, 总数)
+PROGRESS = None
+
+
+def progress(phase, done, total):
+    if PROGRESS:
+        try:
+            PROGRESS(phase, int(done), int(total))
+        except Exception:
+            pass
 
 
 def clean(text):
@@ -92,7 +102,8 @@ def to_video(item, tid, type_name):
 
 
 def sync_list(api, types, years, areas, limit=0, sleep=0.15, force=False, max_pages=0):
-    done = 0
+    # 先算出每个分类要扫多少页，便于展示总进度
+    plan = []
     for t in types:
         tid, tname = t["type_id"], t["type_name"]
         try:
@@ -100,23 +111,42 @@ def sync_list(api, types, years, areas, limit=0, sleep=0.15, force=False, max_pa
         except JPError as e:
             log("分类 %s(%s) 取数量失败: %s" % (tname, tid, e))
             continue
-        log("分类 %s(%s) 切成 %d 个查询切片" % (tname, tid, len(slices)))
+        pages_of = []
         for kw, total in slices:
-            pages = int(math.ceil(total / float(config.PAGE_SIZE))) if total else 0
+            pg = int(math.ceil(total / float(config.PAGE_SIZE))) if total else 0
             if max_pages and max_pages > 0:
-                pages = min(pages, max_pages)
+                pg = min(pg, max_pages)
+            if pg:
+                pages_of.append((kw, pg))
+        if pages_of:
+            plan.append((tid, tname, pages_of))
+            log("分类 %s(%s)：%d 个切片，共 %d 页"
+                % (tname, tid, len(pages_of), sum(p for _, p in pages_of)))
+
+    total_pages = sum(p for _, _, po in plan for _, p in po)
+    page_done = 0
+    done = 0
+    progress("同步目录", 0, total_pages)
+
+    for tid, tname, pages_of in plan:
+        for kw, pages in pages_of:
             for pg in range(1, pages + 1):
                 if limit and done >= limit:
-                    log("达到 --limit %d，停止列表同步" % limit)
+                    log("达到上限 %d 条，停止列表同步" % limit)
+                    progress("同步目录", page_done, total_pages)
                     return done
                 key = "list:%s:%s:%s:%s" % (tid, kw.get("year"), kw.get("area"), pg)
                 if not force and db.get_state(key) == "1":
+                    page_done += 1
+                    progress("同步目录", page_done, total_pages)
                     continue
                 try:
                     d = api.video_list(tid, page=pg, **kw)
                 except JPError as e:
                     log("  列表失败 %s p%d: %s" % (tid, pg, e))
                     _stat["fail"] += 1
+                    page_done += 1
+                    progress("同步目录", page_done, total_pages)
                     continue
                 rows = [to_video(it, tid, tname) for it in (d.get("list") or []) if it.get("vodId")]
                 for r in rows:
@@ -125,8 +155,8 @@ def sync_list(api, types, years, areas, limit=0, sleep=0.15, force=False, max_pa
                 db.set_state(key, "1")
                 done += len(rows)
                 _stat["list_ok"] += len(rows)
-                if rows:
-                    log("  %s(%s) %s p%d -> %d 条" % (tname, tid, kw or "全部", pg, len(rows)))
+                page_done += 1
+                progress("同步目录", page_done, total_pages)
                 time.sleep(sleep)
     return done
 
@@ -189,6 +219,7 @@ def sync_detail(api, limit=0, workers=4, sleep=0.1, changed=False):
             db.commit()
             _stat["detail_ok"] += 1
             _stat["episodes"] += len(eps)
+            progress("同步分集", n, len(todo))
             if n % 20 == 0 or n == len(todo):
                 log("  进度 %d/%d，已入库分集 %d" % (n, len(todo), _stat["episodes"]))
     return n

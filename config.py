@@ -31,7 +31,16 @@ ACCESS_TOKEN = os.environ.get("JP_TOKEN", "")
 PLAY_CACHE_TTL = int(os.environ.get("JP_CACHE_TTL", "1800"))
 DEFAULT_QUALITY = int(os.environ.get("JP_DEFAULT_QUALITY", "1080"))
 
-# ---------------- 同步参数 ----------------
+# ---------------- 同步参数（全部走环境变量，写进 compose 即可） ----------------
 # 列表接口 totalCount 被 10000 截顶（ES max_result_window），超过就按年份切片
 TOTAL_CAP = 10000
 PAGE_SIZE = 30
+
+# 增量时每个切片扫几页（0=全部；首次空库会自动用全部）
+PAGES = int(os.environ.get("JP_PAGES", "5"))
+# 详情并发
+WORKERS = int(os.environ.get("JP_WORKERS", "3"))
+# 自动更新间隔（小时），从上一次「跑完」开始计时
+INTERVAL_HOURS = float(os.environ.get("JP_INTERVAL_HOURS", "24"))
+# 启动后是否立刻跑一次（默认开启；设为 0 则等第一个间隔到期）
+BOOTSTRAP = int(os.environ.get("JP_BOOTSTRAP", "1"))

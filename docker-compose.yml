@@ -10,11 +10,19 @@ services:
       - "8989:8989"
     environment:
       TZ: Asia/Shanghai
-      # 服务地址 / 源站域名 / 缓存时长 都在界面「站点与地址」里设置（存数据库，改完即时生效）
-      # 这里只放容器级参数：
-      # 留空=不鉴权；非空时界面和接口都要带 ?token=xxx
-      JP_TOKEN: ""
+      # ---- 抓取参数（改完重启容器生效）----
+      # 增量时每个分类切片扫几页（0=全部；空库首次会自动全量）
+      JP_PAGES: "5"
+      # 分集详情并发（NAS 上建议 2~3）
+      JP_WORKERS: "3"
+      # 自动更新间隔（小时），从上一次「跑完」开始计时
+      JP_INTERVAL_HOURS: "24"
+      # 启动后是否立刻跑一次（1=是，0=等第一个间隔到期）
+      JP_BOOTSTRAP: "1"
+      # 默认清晰度
       JP_DEFAULT_QUALITY: "1080"
+      # 访问令牌：留空=不鉴权；非空时界面和接口都要带 ?token=xxx
+      JP_TOKEN: ""
     volumes:
       # 数据库（剧集目录）
       - ./data:/app/data

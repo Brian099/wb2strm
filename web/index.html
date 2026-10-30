@@ -37,86 +37,29 @@
   <section id="ops" style="display:none">
     <div class="stat-row" id="stats"></div>
 
-    <div class="ops-grid">
-      <div class="panel" style="grid-column:1/-1">
-        <h3>一键更新</h3>
-        <p>依次执行：同步目录（增量） → 同步分集（新增 + 变化） → 导出 STRM。日常用这一个按钮就够。</p>
-        <div class="field">
-          <span>分类</span><input id="allTypes" type="text" placeholder="留空=全部">
-          <span>每片页数</span><input id="allPages" type="number" value="5" min="0" style="max-width:90px">
-          <span>并发</span><input id="allWorkers" type="number" value="3" min="1" max="8" style="max-width:70px">
-        </div>
-        <div class="field">
-          <label><input type="checkbox" id="allExport" checked> 完成后导出 STRM</label>
-          <label><input type="checkbox" id="allNfo" checked> NFO</label>
-          <label><input type="checkbox" id="allImages" checked> 海报</label>
-        </div>
-        <button class="btn" id="btnAll">一键更新</button>
-      </div>
-
-      <div class="panel">
-        <h3>同步目录</h3>
-        <p>抓取剧集列表入库。电影会自动按年份切片绕开 10000 条上限。</p>
-        <div class="field"><span>分类</span><input id="syncTypes" type="text" placeholder="留空=全部，或 2,88"></div>
-        <div class="field"><span>数量上限</span><input id="syncLimit" type="number" placeholder="0=不限" value="0"></div>
-        <div class="field">
-          <label><input type="checkbox" id="syncForce"> 增量重扫（忽略断点）</label>
-        </div>
-        <div class="field"><span>每片页数</span><input id="syncPages" type="number" placeholder="0=全部；增量填 5" value="0"></div>
-        <button class="btn" id="btnList">开始同步目录</button>
-      </div>
-
-      <div class="panel">
-        <h3>同步分集</h3>
-        <p>为缺分集的剧补详情。接口不支持批量，4 并发约 2.4 小时跑完 4 万部。</p>
-        <div class="field"><span>数量上限</span><input id="detLimit" type="number" placeholder="0=不限" value="0"></div>
-        <div class="field"><span>并发</span><input id="detWorkers" type="number" value="4" min="1" max="8"></div>
-        <div class="field">
-          <label><input type="checkbox" id="detChanged" checked> 同时更新状态有变化的剧</label>
-        </div>
-        <button class="btn" id="btnDetail">开始同步分集</button>
-      </div>
-
-      <div class="panel">
-        <h3>导出 STRM</h3>
-        <p>每集生成一个 .strm，内容是本机取流地址，供 Emby / Jellyfin / Kodi 使用。</p>
-        <div class="field">
-          <label><input type="checkbox" id="strmNfo" checked> 生成 NFO</label>
-          <label><input type="checkbox" id="strmImg" checked> 下载海报</label>
-          <label><input type="checkbox" id="strmClean"> 清理孤儿文件</label>
-        </div>
-        <div class="field"><span>分类</span><input id="strmTypes" type="text" placeholder="留空=全部"></div>
-        <button class="btn" id="btnStrm">开始导出</button>
-      </div>
-    </div>
-
-    <div class="panel" style="grid-column:1/-1">
-      <h3>站点与地址</h3>
-      <p>保存后立即生效，不用改 compose 或重启容器。换了服务地址记得点「保存并重新导出」，否则 .strm 里还是旧地址。</p>
-      <div class="field"><span>服务地址</span><input id="setPublicBase" type="text" placeholder="http://192.168.1.110:8989"></div>
-      <div class="field"><span>源站域名</span><input id="setSourceHost" type="text" placeholder="https://example.com"></div>
-      <div class="field"><span>取流缓存(秒)</span><input id="setCacheTtl" type="number" value="1800" style="max-width:120px"></div>
-      <div class="field">
-        <label><input type="checkbox" id="setAutoEnabled"> 定时自动更新，每</label>
-        <input id="setAutoHours" type="number" value="24" min="1" style="max-width:80px">
-        <span>小时</span>
-      </div>
-      <div class="field">
-        <span>页数</span><input id="setAutoPages" type="number" value="5" min="1" style="max-width:80px">
-        <span>并发</span><input id="setAutoWorkers" type="number" value="3" min="1" max="8" style="max-width:70px">
-        <label><input type="checkbox" id="setAutoExport" checked> 自动导出 STRM</label>
-      </div>
-      <button class="btn" id="btnSaveSettings">保存</button>
-      <button class="btn ghost" id="btnSaveRegen">保存并重新导出 STRM</button>
-      <p id="nextRunInfo" style="margin:12px 0 0">定时自动更新：未开启</p>
+    <div class="panel">
+      <h3><span class="status-dot" id="jobDot"></span>获取进度</h3>
+      <p id="jobState">空闲</p>
+      <div class="progress"><div class="progress-bar" id="progBar"></div></div>
+      <p id="progText" style="margin:8px 0 0"></p>
+      <p id="nextRunInfo" style="margin:10px 0 0">下次更新：计算中…</p>
     </div>
 
     <div class="panel">
-      <h3><span class="status-dot" id="jobDot"></span>任务日志</h3>
-      <p id="jobState">空闲</p>
+      <h3>服务地址</h3>
+      <p>写进 .strm 的地址，必须是播放器（Emby / Jellyfin / 电视盒子）能访问到的地址。改完点右边按钮重新生成。</p>
+      <div class="field">
+        <input id="setPublicBase" type="text" placeholder="http://192.168.1.110:8989">
+        <button class="btn" id="btnSaveRegen" style="white-space:nowrap">保存并重新生成 STRM</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>任务日志</h3>
       <div class="logbox" id="logbox">等待任务…</div>
     </div>
   </section>
+
 </main>
 
 <!-- ==================== 详情弹窗 ==================== -->
