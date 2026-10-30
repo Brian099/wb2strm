@@ -38,7 +38,7 @@
     <div class="stat-row" id="stats"></div>
 
     <div class="panel">
-      <h3><span class="status-dot" id="jobDot"></span>获取进度</h3>
+      <h3><span class="status-dot" id="jobDot"></span>抓取进度</h3>
       <p id="jobState">空闲</p>
       <div class="progress"><div class="progress-bar" id="progBar"></div></div>
       <p id="progText" style="margin:8px 0 0"></p>
@@ -47,7 +47,10 @@
 
     <div class="panel">
       <h3>服务地址</h3>
-      <p>写进 .strm 的地址，由影视软件（Emby / Jellyfin）去请求，不是浏览器。<br>影视软件<b>装在宿主机</b>可以用 <code>127.0.0.1</code>；<b>也跑在 Docker 里</b>就不行（那是它自己的容器），要用宿主机局域网 IP。改完点右边按钮重新生成。</p>
+      <p>这里填的是<b>写进 .strm 的地址</b>，由影视软件（Emby / Jellyfin）访问，不是浏览器访问。</p>
+      <p>影视软件装在<b>宿主机</b>上：可以用 <code>127.0.0.1</code>。<br>
+         影视软件也在 <b>Docker</b> 里：必须填宿主机局域网 IP，因为 <code>127.0.0.1</code> 指向的是它自己的容器。</p>
+      <p>改完点右侧按钮重新生成。</p>
       <div class="field">
         <input id="setPublicBase" type="text" placeholder="http://192.168.1.110:8989">
         <button class="btn" id="btnSaveRegen" style="white-space:nowrap">保存并重新生成 STRM</button>
