@@ -35,6 +35,15 @@ services:
       JP_FORCE_FULL: "0"
       # 播放方式：1=中继（推荐，兼容性最好）；0=302 直连（省带宽，但要求播放器与本服务同出口 IP）
       JP_RELAY: "1"
+      # ---- 导出参数（几十万集时很关键）----
+      # 生成 tvshow.nfo / movie.nfo（每部剧 1 个，很便宜）
+      JP_EXPORT_NFO: "1"
+      # 每集单独生成 .nfo（每集 1 个文件，几十万集会很慢，默认关）
+      JP_EXPORT_EP_NFO: "0"
+      # 下载海报/背景图（每部剧 1 次请求，本地复制出 fanart）
+      JP_EXPORT_IMAGES: "1"
+      # 图片下载并发
+      JP_IMAGE_WORKERS: "8"
       # 默认清晰度
       JP_DEFAULT_QUALITY: "1080"
       # 访问令牌：留空=不鉴权；非空时界面和接口都要带 ?token=xxx

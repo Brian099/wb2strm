@@ -237,10 +237,10 @@ def _job_sync_detail(limit, workers, sleep, changed=False):
 
 
 def _job_strm(nfo, images, clean, types, limit):
-    strm.export(None, types or "", int(limit or 0), bool(nfo), bool(images), bool(clean))
+    strm.export(None, types or "", int(limit or 0), nfo, images, bool(clean))
 
 
-def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=True, images=True, clean=False):
+def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=None, images=None, clean=False):
     """全流程：① 同步目录 -> ② 同步分集 -> ③ 导出 STRM
 
     空库时自动全量（扫全部页），有数据时走增量（每片 config.PAGES 页）。
@@ -284,7 +284,7 @@ def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=True
         if export:
             sync.log("③ 导出 STRM")
             # 自动流程里开启 clean：清掉库里已不存在的 .strm，保证磁盘数量与库一致
-            strm.export(None, types or "", 0, bool(nfo), bool(images), True)
+            strm.export(None, types or "", 0, nfo, images, True)
 
         st = db.stats()
         sync.log("全流程完成：剧集 %d 部（%d 部有分集），分集 %d 条"
@@ -707,7 +707,7 @@ def api_settings_post():
 
     regen = bool(d.get("regen_strm"))
     if regen:
-        job.start("重新导出 STRM", lambda: _job_strm(True, True, False, "", 0))
+        job.start("重新导出 STRM", lambda: _job_strm(None, None, False, "", 0))
     return jsonify({
         "ok": True,
         "settings": {"public_base": settings.public_base()},

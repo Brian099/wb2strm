@@ -202,6 +202,37 @@ def get_video(vod_id):
     return dict(row) if row else None
 
 
+def vod_ids_with_episodes():
+    """有分集的剧 id 集合（很小，几十万集也只是几万条）。"""
+    return {r["vod_id"] for r in _conn().execute("SELECT DISTINCT vod_id FROM episode").fetchall()}
+
+
+def iter_episodes():
+    """按 vod_id 升序流式产出 (vod_id, [eps])，避免一次性把几十万集读进内存。"""
+    cur = None
+    buf = []
+    for r in _conn().execute(
+            "SELECT vod_id,nid,seq,name FROM episode ORDER BY vod_id, seq, nid"):
+        if r["vod_id"] != cur:
+            if cur is not None:
+                yield cur, buf
+            cur = r["vod_id"]
+            buf = []
+        buf.append({"nid": r["nid"], "seq": r["seq"], "name": r["name"]})
+    if cur is not None:
+        yield cur, buf
+
+
+def episodes_map():
+    """一次查出全部分集并按 vod_id 分组，避免逐部查询（N+1）。"""
+    out = {}
+    for r in _conn().execute(
+            "SELECT vod_id,nid,seq,name FROM episode ORDER BY vod_id, seq, nid").fetchall():
+        out.setdefault(r["vod_id"], []).append(
+            {"nid": r["nid"], "seq": r["seq"], "name": r["name"]})
+    return out
+
+
 def get_episodes(vod_id):
     rows = _conn().execute(
         "SELECT nid,seq,name FROM episode WHERE vod_id=? ORDER BY seq, nid", (str(vod_id),)
