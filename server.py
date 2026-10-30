@@ -282,9 +282,10 @@ def _job_full(types="", pages=None, workers=None, limit=0, export=True, nfo=None
                          sleep=config.DETAIL_SLEEP, changed=True)
 
         if export:
-            sync.log("③ 导出 STRM（只写 .strm，不含 NFO / 海报）")
-            # 自动流程只写 .strm；开启 clean 清掉库里已不存在的文件，保证磁盘数量与库一致
-            strm.export(None, types or "", 0, False, False, True)
+            sync.log("③ 导出 STRM + NFO + 海报（已存在的文件会跳过）")
+            # 自动流程一并生成 NFO 与海报：交给 Emby 自己刮削更慢、还不一定准
+            # clean 清掉库里已不存在的 .strm，保证磁盘数量与库一致
+            strm.export(None, types or "", 0, True, True, True)
 
         st = db.stats()
         sync.log("全流程完成：剧集 %d 部（%d 部有分集），分集 %d 条"
