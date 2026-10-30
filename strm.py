@@ -147,9 +147,10 @@ def _check_public_base():
     """服务地址是本机回环时给出提示：写进 .strm 后别的设备播不了。"""
     base = settings.public_base()
     if not base or "127.0.0.1" in base or "localhost" in base:
-        log("[警告] 服务地址是 %s，导出的 .strm 只有本机能播" % (base or "(空)"))
-        log("  请到界面「站点与地址」改成局域网 IP（如 http://192.168.1.10:8989），"
-            "再点「保存并重新导出 STRM」")
+        log("[警告] 服务地址是 %s，只有「本机原生运行的播放器」能访问" % (base or "(空)"))
+        log("  如果 Emby / Jellyfin 也跑在 Docker 里，127.0.0.1 指向它自己的容器，会连不上。")
+        log("  请到运维页改成宿主机局域网 IP（如 http://192.168.1.10:8989），"
+            "再点「保存并重新生成 STRM」")
 
 
 def export(root=None, types="", limit=0, nfo=False, images=False, clean=False):
