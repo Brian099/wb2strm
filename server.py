@@ -349,16 +349,27 @@ scheduler = Scheduler()
 
 # ------------------------------------------------------------------ 客户端识别
 def _client_ip():
-    """取真实客户端 IP：优先反代头，其次 remote_addr。"""
-    xff = request.headers.get("X-Forwarded-For", "")
-    if xff:
-        ip = xff.split(",")[0].strip()
-        if ip:
-            return ip
-    ip = request.headers.get("X-Real-IP", "").strip()
-    if ip:
-        return ip
-    return (request.remote_addr or "").strip()
+    """取真实客户端 IP，返回 (ip, 是否可信)。
+
+    反代没配好时（比如把 X-Real-IP 填成 127.0.0.1、或干脆不传），
+    我们宁可认为「判断不了」也不瞎猜 —— 判断不了就走中继，保证能播。
+    """
+    for h in ("X-Forwarded-For", "X-Real-IP"):
+        v = (request.headers.get(h) or "").strip()
+        if not v:
+            continue
+        ip = v.split(",")[0].strip()
+        if not ip:
+            continue
+        try:
+            a = ipaddress.ip_address(ip.split("%")[0])
+        except Exception:
+            return "", False          # 头存在但内容非法 -> 不可信
+        if a.is_loopback:
+            return "", False          # 反代填了 127.0.0.1 -> 不可信
+        return ip, True
+    # 没有任何转发头：直接用对端地址（局域网直连就是这种情况）
+    return (request.remote_addr or "").strip(), True
 
 
 def _is_lan_ip(ip):
@@ -380,7 +391,10 @@ def _use_direct():
         return True
     if mode == "relay":
         return False
-    return _is_lan_ip(_client_ip())      # auto
+    ip, ok = _client_ip()
+    if not ok:
+        return False                     # 判断不了 -> 中继（安全，保证能播）
+    return _is_lan_ip(ip)
 
 
 # ------------------------------------------------------------------ 鉴权
@@ -675,15 +689,23 @@ def api_types():
 @app.route("/api/whoami")
 def api_whoami():
     """自检：服务端看到的你的 IP、是否内网、当前会走直连还是中继。"""
-    ip = _client_ip()
+    ip, trusted = _client_ip()
     lan = _is_lan_ip(ip)
     direct = _use_direct()
+    hint = ""
+    if not trusted:
+        hint = ("反向代理没有传真实客户端 IP（X-Forwarded-For / X-Real-IP 缺失或为 127.0.0.1），"
+                "无法判断内外网，已回退为中继。请修正反代配置："
+                "proxy_set_header X-Real-IP $remote_addr; "
+                "proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;")
     return jsonify({
         "ok": True,
         "client_ip": ip,
+        "trustworthy": trusted,
         "is_lan": lan,
         "play_mode": config.PLAY_MODE,
         "decision": "direct(302直连)" if direct else "relay(中继转发)",
+        "hint": hint,
         "x_forwarded_for": request.headers.get("X-Forwarded-For", ""),
         "x_real_ip": request.headers.get("X-Real-IP", ""),
         "remote_addr": request.remote_addr,
