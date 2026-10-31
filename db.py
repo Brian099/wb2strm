@@ -38,6 +38,10 @@ CREATE INDEX IF NOT EXISTS idx_video_year ON video(year);
 CREATE INDEX IF NOT EXISTS idx_video_detail ON video(detail_at);
 -- 分类筛选/统计用的是 COALESCE 表达式，必须建表达式索引才能走索引
 CREATE INDEX IF NOT EXISTS idx_video_cat ON video(COALESCE(NULLIF(cat,''), type_name));
+-- 复合索引：让「分类/年份/类型 + 按 vod_id 倒序」直接走索引，不再建临时 B 树排序
+CREATE INDEX IF NOT EXISTS idx_video_cat_vod ON video(COALESCE(NULLIF(cat,''), type_name), vod_id);
+CREATE INDEX IF NOT EXISTS idx_video_year_vod ON video(year, vod_id);
+CREATE INDEX IF NOT EXISTS idx_video_type_vod ON video(type_id, vod_id);
 
 CREATE TABLE IF NOT EXISTS episode (
     vod_id  TEXT NOT NULL,
@@ -268,9 +272,15 @@ def _where(type_id="", year="", keyword="", cat="", need_detail=None, changed=Fa
     return sql, args
 
 
-def list_videos(type_id="", year="", keyword="", cat="", need_detail=None, changed=False, limit=100, offset=0):
+# 列表页只需要这几列，别把 content / actor 这些长文本也查出来
+SLIM_COLS = ("vod_id", "name", "pic", "remarks", "year", "cat", "type_id", "type_name", "episode_count")
+
+
+def list_videos(type_id="", year="", keyword="", cat="", need_detail=None, changed=False,
+                limit=100, offset=0, slim=False):
     sql, args = _where(type_id, year, keyword, cat, need_detail, changed)
-    sql = "SELECT * FROM video" + sql + " ORDER BY vod_id DESC LIMIT ? OFFSET ?"
+    cols = ", ".join(SLIM_COLS) if slim else "*"
+    sql = "SELECT " + cols + " FROM video" + sql + " ORDER BY vod_id DESC LIMIT ? OFFSET ?"
     args += [int(limit), int(offset)]
     return [dict(r) for r in _conn().execute(sql, args).fetchall()]
 

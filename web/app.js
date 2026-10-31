@@ -562,7 +562,9 @@
 
   // ---------------------------------------------------------------- 启动
   bind();
-  loadTypes().then(loadList);
+  // 分类和列表并行拉，别串行等；列表先出骨架，数据到了再填
+  loadList();
+  loadTypes();
   api("/api/stats").then((d) => {
     if (d.job && d.job.running) pollJob();
   }).catch(() => {});

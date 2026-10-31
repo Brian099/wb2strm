@@ -654,7 +654,8 @@ def api_videos():
     q = request.args.get("q", "")
     limit = min(int(request.args.get("limit", 60)), 300)
     offset = int(request.args.get("offset", 0))
-    rows = db.list_videos(type_id=type_id, year=year, keyword=q, cat=cat, limit=limit, offset=offset)
+    rows = db.list_videos(type_id=type_id, year=year, keyword=q, cat=cat,
+                          limit=limit, offset=offset, slim=True)
     total = db.count_videos(type_id=type_id, year=year, keyword=q, cat=cat)
     return jsonify({"ok": True, "total": total, "count": len(rows), "list": rows})
 
@@ -677,13 +678,21 @@ def api_video(vid):
     return jsonify({"ok": True, "video": v})
 
 
+_types_cache = {"at": 0.0, "data": None}
+_types_lock = threading.Lock()
+
+
 @app.route("/api/types")
 def api_types():
-    return jsonify({
-        "ok": True,
-        "cats": db.cats(),
-        "years": db.years(),
-    })
+    """分类 + 年份筛选。数据变化不频繁，缓存 60 秒，避免每次进页面都全表 GROUP BY。"""
+    with _types_lock:
+        if _types_cache["data"] and time.time() - _types_cache["at"] < 60:
+            return jsonify(_types_cache["data"])
+    data = {"ok": True, "cats": db.cats(), "years": db.years()}
+    with _types_lock:
+        _types_cache["at"] = time.time()
+        _types_cache["data"] = data
+    return jsonify(data)
 
 
 @app.route("/api/whoami")
