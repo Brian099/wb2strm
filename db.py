@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS video (
 CREATE INDEX IF NOT EXISTS idx_video_type ON video(type_id);
 CREATE INDEX IF NOT EXISTS idx_video_year ON video(year);
 CREATE INDEX IF NOT EXISTS idx_video_detail ON video(detail_at);
+-- 分类筛选/统计用的是 COALESCE 表达式，必须建表达式索引才能走索引
+CREATE INDEX IF NOT EXISTS idx_video_cat ON video(COALESCE(NULLIF(cat,''), type_name));
 
 CREATE TABLE IF NOT EXISTS episode (
     vod_id  TEXT NOT NULL,

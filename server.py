@@ -349,7 +349,7 @@ scheduler = Scheduler()
 # ------------------------------------------------------------------ 鉴权
 # 静态资源不需要令牌，否则设了 JP_TOKEN 后界面加载不出来
 # /api.php 与 /pic 有各自的 key 校验（JP_API_KEY），不走界面令牌
-_OPEN_PREFIX = ("/ui", "/app.js", "/style.css", "/favicon.ico", "/api.php", "/pic")
+_OPEN_PREFIX = ("/ui", "/app.js", "/style.css", "/hls.min.js", "/favicon.ico", "/api.php", "/pic")
 
 
 def _authed():
@@ -403,6 +403,11 @@ def ui_appjs():
 @app.route("/style.css")
 def ui_css():
     return send_from_directory(WEB_DIR, "style.css")
+
+
+@app.route("/hls.min.js")
+def ui_hls():
+    return send_from_directory(WEB_DIR, "hls.min.js")
 
 
 # ------------------------------------------------------------------ 播放

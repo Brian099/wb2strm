@@ -266,7 +266,29 @@
     });
   }
 
-  function playWith(vid, nid, q) {
+  let hlsLoading = null;
+  function ensureHls() {
+    if (window.Hls) return Promise.resolve(true);
+    if (hlsLoading) return hlsLoading;
+    hlsLoading = new Promise((resolve) => {
+      const load = (src, ok, fail) => {
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = () => resolve(ok());
+        s.onerror = () => fail();
+        document.head.appendChild(s);
+      };
+      // 本地内置优先，局域网/无外网也能播
+      load("hls.min.js",
+        () => !!window.Hls,
+        () => load("https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js",
+          () => !!window.Hls,
+          () => resolve(false)));
+    });
+    return hlsLoading;
+  }
+
+  async function playWith(vid, nid, q) {
     const url = buildPlayUrl(vid, nid, q);
     const video = $("video");
     renderQualities(vid, nid, q || 1080);
@@ -280,6 +302,8 @@
     }
     video.removeAttribute("src");
     video.load();
+
+    await ensureHls();
 
     if (window.Hls && window.Hls.isSupported()) {
       hls = new window.Hls({ lowLatencyMode: false, maxBufferLength: 30 });
