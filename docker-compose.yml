@@ -41,6 +41,10 @@ services:
       JP_DEFAULT_QUALITY: "1080"
       # 访问令牌：留空=不鉴权；非空时界面和接口都要带 ?token=xxx
       JP_TOKEN: ""
+      # 苹果CMS 兼容接口（/api.php/provide/vod）的密钥：留空=公开
+      JP_API_KEY: ""
+      # 该接口 vod_play_from 显示的线路名
+      JP_API_PLAY_FROM: "wb2strm"
     volumes:
       # 数据库（剧集目录）
       - ./data:/app/data

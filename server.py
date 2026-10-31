@@ -32,6 +32,7 @@ from flask import Flask, Response, jsonify, redirect, request, send_from_directo
 
 import config
 import db
+import maccms
 import settings
 import strm
 import sync
@@ -41,6 +42,7 @@ urllib3.disable_warnings()
 
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
+maccms.register(app)   # 苹果CMS 兼容接口 /api.php/provide/vod
 
 _api_lock = threading.Lock()
 _api_host = ""
@@ -346,7 +348,8 @@ scheduler = Scheduler()
 
 # ------------------------------------------------------------------ 鉴权
 # 静态资源不需要令牌，否则设了 JP_TOKEN 后界面加载不出来
-_OPEN_PREFIX = ("/ui", "/app.js", "/style.css", "/favicon.ico")
+# /api.php 与 /pic 有各自的 key 校验（JP_API_KEY），不走界面令牌
+_OPEN_PREFIX = ("/ui", "/app.js", "/style.css", "/favicon.ico", "/api.php", "/pic")
 
 
 def _authed():

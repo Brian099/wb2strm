@@ -23,7 +23,9 @@ def main():
     print("数据库    %s" % config.DB_PATH, flush=True)
     print("STRM 目录 %s" % config.STRM_ROOT, flush=True)
     print("取流缓存  %d 秒" % config.PLAY_CACHE_TTL, flush=True)
-    print("鉴权      %s" % ("开启" if config.ACCESS_TOKEN else "关闭"), flush=True)
+    print("界面鉴权  %s" % ("开启" if config.ACCESS_TOKEN else "关闭"), flush=True)
+    print("采集接口  /api.php/provide/vod  %s"
+          % ("密钥 " + ("已设置" if config.API_KEY else "未设置")), flush=True)
     print("=" * 56, flush=True)
 
     try:

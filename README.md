@@ -229,6 +229,37 @@ python sync.py detail --workers 4   # 补分集
 - 列表接口的 `totalCount` 有 **10000 截顶**（Elasticsearch `max_result_window`），`sync.py` 会自动按「年份 → 地区」切片绕开
 - 断点续爬：每个列表页成功后会写 `sync_state`，中断后重跑不会重复抓
 
+## 苹果CMS 兼容接口
+
+把本地库当成标准「资源站接口」暴露出去，TVBox 的「添加接口」、各类聚合/采集器
+都能直接订阅，无需改造。
+
+| 接口 | 说明 |
+|---|---|
+| `GET/POST /api.php/provide/vod?ac=list` | 分类列表（含每类视频数量） |
+| `GET/POST /api.php/provide/vod?ac=videolist&t=2&pg=1&limit=20` | 视频列表（含播放地址） |
+| `...&ac=detail&ids=1,2,3` / `...&id=1` | 按 ID 取 |
+| `...&wd=关键词` | 搜索 |
+| `...&at=xml` | 输出 XML（默认 JSON） |
+| `GET /pic?url=<图片地址>` 或 `/pic/<base64url>` | 图片代理 |
+
+响应字段与苹果CMS V10 / maccms-go 一致（20 个）：
+
+```
+vod_id, type_id, type_name, vod_name, vod_en, vod_pic, vod_remarks, vod_time,
+vod_actor, vod_director, vod_content, vod_year, vod_area, vod_lang,
+vod_play_from, vod_play_url, vod_douban_id, vod_douban_score, vod_score, vod_score_num
+```
+
+`vod_play_url` 形如 `第1集$http://<服务地址>/relay/<vod_id>/<nid>.m3u8#第2集$…`，
+走的是本服务的中继地址，播放器直接能播。
+
+鉴权：`JP_API_KEY` 非空时请求要带 `&key=<JP_API_KEY>`（默认留空＝公开）。
+`vod_play_from` 的线路名由 `JP_API_PLAY_FROM` 控制，默认 `wb2strm`。
+
+> 加了密钥后，TVBox 里填接口地址时带上 key：
+> `http://<宿主机IP>:8989/api.php/provide/vod?key=你的密钥`
+
 ## 接口
 
 | 方法 | 路径 | 说明 |
@@ -361,7 +392,9 @@ Kodi：直接添加 `strm` 目录为视频源即可。
 |---|---|---|
 | `JP_LISTEN_HOST` | `0.0.0.0` | 监听地址 |
 | `JP_LISTEN_PORT` | `8989` | 服务端口 |
-| `JP_TOKEN` | 空 | 非空时所有接口要带 `?token=xxx`（会写进 .strm） |
+| `JP_TOKEN` | 空 | 非空时界面接口要带 `?token=xxx`（会写进 .strm） |
+| `JP_API_KEY` | 空 | 苹果CMS 接口密钥，非空时 `/api.php` 要带 `&key=` |
+| `JP_API_PLAY_FROM` | `wb2strm` | 接口返回的 `vod_play_from` 线路名 |
 | `JP_DB` | `data/wb2strm.db` | 数据库路径 |
 | `JP_STRM_ROOT` | `strm` | STRM 导出根目录 |
 | `JP_CACHE_TTL` | `1800` | 取流缓存秒数 |
