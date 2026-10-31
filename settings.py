@@ -16,6 +16,7 @@ _DEFAULTS = {
     "last_finish": "0",      # 上一次全流程跑完的时间戳，用于算下次更新
     "strm_count": "0",       # 最近一次导出后的 .strm 数量
     "catalog_complete": "0", # 目录是否已完整扫过一遍（0=还没，需继续全量）
+    "api_key": config.API_KEY,   # 苹果CMS 接口密码，留空=公开
 }
 
 _lock = threading.Lock()
@@ -78,6 +79,11 @@ def source_host():
     if not host:
         raise RuntimeError("未配置环境变量 JP_HOST（抓取站点地址）")
     return host
+
+
+def api_key():
+    """苹果CMS 接口密码，空字符串表示不校验。"""
+    return str(get("api_key") or "").strip()
 
 
 def last_finish():

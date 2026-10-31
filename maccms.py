@@ -75,7 +75,7 @@ def _image_mime(blob, upstream=None):
 
 
 def _key_ok():
-    need = _text(getattr(config, "API_KEY", ""))
+    need = settings.api_key()
     if not need:
         return True
     got = _text(request.values.get("key") or request.headers.get("X-Api-Key") or "")

@@ -67,6 +67,21 @@
     </div>
 
     <div class="panel">
+      <h3>采集接口（苹果CMS）</h3>
+      <p>把本地库当资源站接口暴露，TVBox「添加接口」里直接填下面这个地址。</p>
+      <div class="field">
+        <input id="cmsUrl" type="text" readonly placeholder="http://…/api.php/provide/vod">
+        <button class="btn ghost" id="btnCopyCms" style="white-space:nowrap">复制</button>
+      </div>
+      <div class="field">
+        <span>接口密码</span>
+        <input id="setApiKey" type="text" placeholder="留空 = 公开，不校验密码">
+        <button class="btn" id="btnSaveKey" style="white-space:nowrap">保存密码</button>
+      </div>
+      <p id="cmsHint" style="margin:6px 0 0;color:#8b93a3;font-size:12.5px">—</p>
+    </div>
+
+    <div class="panel">
       <h3>任务日志</h3>
       <div class="logbox" id="logbox">等待任务…</div>
     </div>

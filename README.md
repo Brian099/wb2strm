@@ -87,6 +87,7 @@ wb2strm/
 - 下次更新时间（从上一次跑完开始算）
 - **服务地址**：改完点「保存并重新生成 STRM」即可，不用改 compose、不用重启
 - 手动重新生成时可勾选 **NFO 元数据** / **下载海报**（默认都不勾，只重写 .strm）
+- **采集接口**：显示苹果CMS 接口完整地址（一键复制），并可在此设置/修改接口密码
 - 实时日志控制台
 
 抓取、更新、导出全部自动进行，界面上没有「开始」按钮。
@@ -254,7 +255,8 @@ vod_play_from, vod_play_url, vod_douban_id, vod_douban_score, vod_score, vod_sco
 `vod_play_url` 形如 `第1集$http://<服务地址>/relay/<vod_id>/<nid>.m3u8#第2集$…`，
 走的是本服务的中继地址，播放器直接能播。
 
-鉴权：`JP_API_KEY` 非空时请求要带 `&key=<JP_API_KEY>`（默认留空＝公开）。
+鉴权：在运维页「采集接口」里设置**接口密码**后，请求必须带 `&key=<密码>`；
+留空则公开。密码存在数据库里，改完即时生效，不用重启。
 `vod_play_from` 的线路名由 `JP_API_PLAY_FROM` 控制，默认 `wb2strm`。
 
 > 加了密钥后，TVBox 里填接口地址时带上 key：
@@ -393,7 +395,7 @@ Kodi：直接添加 `strm` 目录为视频源即可。
 | `JP_LISTEN_HOST` | `0.0.0.0` | 监听地址 |
 | `JP_LISTEN_PORT` | `8989` | 服务端口 |
 | `JP_TOKEN` | 空 | 非空时界面接口要带 `?token=xxx`（会写进 .strm） |
-| `JP_API_KEY` | 空 | 苹果CMS 接口密钥，非空时 `/api.php` 要带 `&key=` |
+| `JP_API_KEY` | 空 | 苹果CMS 接口密码的**首次默认值**，之后以运维页设置为准 |
 | `JP_API_PLAY_FROM` | `wb2strm` | 接口返回的 `vod_play_from` 线路名 |
 | `JP_DB` | `data/wb2strm.db` | 数据库路径 |
 | `JP_STRM_ROOT` | `strm` | STRM 导出根目录 |

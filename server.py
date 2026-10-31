@@ -684,11 +684,18 @@ def api_job_all():
     return jsonify({"ok": ok, "msg": msg}), (200 if ok else 409)
 
 
+def _cms_url():
+    u = "%s/api.php/provide/vod" % settings.public_base()
+    k = settings.api_key()
+    return (u + "?key=" + k) if k else u
+
+
 @app.route("/api/settings", methods=["GET"])
 def api_settings_get():
     return jsonify({
         "ok": True,
-        "settings": {"public_base": settings.public_base()},
+        "settings": {"public_base": settings.public_base(), "api_key": settings.api_key()},
+        "cms_url": _cms_url(),
         "next_run": scheduler.next_run_at(),
         "interval_hours": config.INTERVAL_HOURS,
         "last_finish": settings.last_finish(),
@@ -704,6 +711,8 @@ def api_settings_post():
         if u and not u.startswith("http"):
             u = "http://" + u
         pairs["public_base"] = u
+    if "api_key" in d:
+        pairs["api_key"] = str(d.get("api_key") or "").strip()
     settings.set_many(pairs)
     cache.ttl = config.PLAY_CACHE_TTL
 
@@ -715,7 +724,8 @@ def api_settings_post():
         job.start("重新导出 STRM", lambda: _job_strm(nfo, images, False, "", 0, ep_nfo))
     return jsonify({
         "ok": True,
-        "settings": {"public_base": settings.public_base()},
+        "settings": {"public_base": settings.public_base(), "api_key": settings.api_key()},
+        "cms_url": _cms_url(),
         "regen": regen,
         "msg": "已保存" + ("，正在重新导出 STRM" if regen else ""),
     })

@@ -417,6 +417,35 @@
     }
     settings = d.settings || {};
     $("setPublicBase").value = settings.public_base || "";
+    $("setApiKey").value = settings.api_key || "";
+    $("cmsUrl").value = d.cms_url || "";
+    const hasKey = !!(settings.api_key || "").trim();
+    $("cmsHint").textContent = hasKey
+      ? "已设置密码：访问接口必须带 ?key=…（上面的地址已包含）"
+      : "未设置密码：任何人都能访问这个接口，建议设置一个";
+    $("cmsHint").style.color = hasKey ? "#8b93a3" : "#fbbf24";
+  }
+
+  async function saveApiKey() {
+    const r = await post("/api/settings", { api_key: $("setApiKey").value.trim() });
+    if (!r.ok || !r.data.ok) {
+      toast((r.data && r.data.error) || "保存失败");
+      return;
+    }
+    toast("接口密码已保存");
+    await loadSettings();
+  }
+
+  function copyCmsUrl() {
+    const v = $("cmsUrl").value;
+    if (!v) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(v).then(() => toast("已复制"), () => toast("复制失败，请手动选择"));
+    } else {
+      $("cmsUrl").select();
+      document.execCommand("copy");
+      toast("已复制");
+    }
   }
 
   async function saveRegen() {
@@ -498,6 +527,8 @@
     });
 
     $("btnSaveRegen").onclick = saveRegen;
+    $("btnSaveKey").onclick = saveApiKey;
+    $("btnCopyCms").onclick = copyCmsUrl;
   }
 
   // ---------------------------------------------------------------- 启动
