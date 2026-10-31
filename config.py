@@ -65,6 +65,9 @@ DEFAULT_QUALITY = int(os.environ.get("JP_DEFAULT_QUALITY", "1080"))
 #           0=直连（302 跳转，省带宽；但 CDN 签名与请求 IP 绑定，
 #             只有和本服务同一出口 IP 的播放器能用）
 RELAY = int(os.environ.get("JP_RELAY", "1"))
+# WSGI 工作线程数：中继模式下每个分片转发会占用一个线程，
+# 线程太少会互相排队（多路同时播放时会卡）
+THREADS = int(os.environ.get("JP_THREADS", "24"))
 
 # ---------------- 苹果CMS 兼容接口 ----------------
 # 非空时，/api.php/provide/vod 需要带 &key=<JP_API_KEY>；留空则公开
