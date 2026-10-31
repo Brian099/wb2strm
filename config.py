@@ -69,13 +69,13 @@ DEFAULT_QUALITY = int(os.environ.get("JP_DEFAULT_QUALITY", "1080"))
 #           relay=全部中继（最稳，费带宽）
 _play_mode = os.environ.get("JP_PLAY_MODE", "").strip().lower()
 if not _play_mode:
-    # 兼容旧配置：有 JP_RELAY 就按它换算，都没有则默认 auto
+    # 兼容旧配置：有 JP_RELAY 就按它换算；都没有则默认 relay（最稳）
     if "JP_RELAY" in os.environ:
         _play_mode = "direct" if os.environ.get("JP_RELAY") == "0" else "relay"
     else:
-        _play_mode = "auto"
+        _play_mode = "relay"
 if _play_mode not in ("auto", "direct", "relay"):
-    _play_mode = "auto"
+    _play_mode = "relay"
 PLAY_MODE = _play_mode
 RELAY = (PLAY_MODE == "relay")   # 兼容旧代码引用
 # WSGI 工作线程数：中继模式下每个分片转发会占用一个线程，

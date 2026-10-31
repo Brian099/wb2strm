@@ -296,9 +296,18 @@ vod_play_from, vod_play_url, vod_douban_id, vod_douban_score, vod_score, vod_sco
 
 | 模式 | 行为 |
 |---|---|
-| **`auto`（默认，推荐）** | 按**客户端 IP** 判断：内网 → 302 直连 CDN；公网 → 本服务中继转发 |
-| `direct` | 全部 302 直连（省带宽，要求播放器与本服务同出口 IP） |
-| `relay` | 全部中继（最稳，费带宽） |
+| **`relay`（默认）** | 全部中继：任何网络环境都能播，视频流量走本服务转发 |
+| `auto` | 按**客户端 IP** 判断：内网 → 302 直连 CDN；公网 → 本服务中继转发 |
+| `direct` | 全部 302 直连：最省带宽，要求播放器与本服务同出口 IP |
+
+### 按外网接入方式选模式
+
+| 你的环境 | 建议 | 原因 |
+|---|---|---|
+| **DDNS + 端口映射** | `auto` | NAT 保留真实客户端 IP，内外网判断准确 |
+| **frp 内网穿透** | `auto` | frp 隧道拿不到真实 IP，会自动回退成中继（等价 relay）；配了内网 DNS 分流后，内网设备仍能直连 |
+| **纯内网自用** | `direct` | 省掉全部视频带宽（NAS 挂代理/VPN 时改用 `relay`） |
+| 不确定 / 就想省事 | `relay`（默认） | 一定能播，只是费带宽 |
 
 ### auto 是怎么判断的
 
@@ -320,7 +329,7 @@ GET /api/whoami
 
 运维页「服务地址」下面也有「自检」链接。
 
-### 为什么需要中继
+### 为什么外网必须中继
 
 CDN 的 `auth_key` 签名**与请求方 IP 绑定**：
 
@@ -442,7 +451,7 @@ Kodi：直接添加 `strm` 目录为视频源即可。
 | `JP_DB` | `data/wb2strm.db` | 数据库路径 |
 | `JP_STRM_ROOT` | `strm` | STRM 导出根目录 |
 | `JP_CACHE_TTL` | `1800` | 取流缓存秒数 |
-| `JP_PLAY_MODE` | `auto` | 播放方式：`auto` 按客户端 IP 自动 / `direct` 全直连 / `relay` 全中继 |
+| `JP_PLAY_MODE` | `relay` | 播放方式：`relay` 全中继（默认）/ `auto` 按客户端 IP 自动 / `direct` 全直连 |
 | `JP_THREADS` | `24` | 工作线程数（中继每路播放占用线程） |
 | `JP_IMAGE_WORKERS` | `8` | 手动勾选「下载海报」时的并发数 |
 | `JP_DEFAULT_QUALITY` | `1080` | 默认清晰度 |
