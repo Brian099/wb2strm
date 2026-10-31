@@ -379,6 +379,11 @@
     });
     relayMode = d.relay !== false;
     renderNextRun(d.next_run, d.interval_hours, d.last_finish);
+    const pm = d.play_mode || "auto";
+    const pmText = pm === "auto" ? "自动（内网直连 / 外网中继）"
+                 : (pm === "direct" ? "全部直连" : "全部中继");
+    $("playModeInfo").innerHTML = "播放模式：" + pmText +
+      '　<a href="/api/whoami" target="_blank" rel="noreferrer">自检</a>（看本机被判成直连还是中继）';
     const site = d.source_host || "—";
     $("modeText").textContent = "站点：" + site + " · " + (d.catalog_complete
       ? "目录已完整抓取，当前为增量模式"

@@ -74,8 +74,9 @@ def safe_name(name, fallback="未命名"):
 
 
 def play_url(vod_id, nid):
-    path = "/relay" if config.RELAY else "/play"
-    u = "%s%s/%s/%s.m3u8" % (settings.public_base(), path, vod_id, nid)
+    # 统一写 /play：内网直连还是外网中继由服务端按客户端 IP 决定，
+    # 以后切换模式不需要重新导出 .strm
+    u = "%s/play/%s/%s.m3u8" % (settings.public_base(), vod_id, nid)
     if config.ACCESS_TOKEN:
         u += "?token=" + config.ACCESS_TOKEN
     return u

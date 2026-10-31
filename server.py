@@ -18,6 +18,7 @@
 """
 import base64
 import collections
+import ipaddress
 import hashlib
 import hmac
 import os
@@ -346,6 +347,42 @@ class Scheduler(threading.Thread):
 scheduler = Scheduler()
 
 
+# ------------------------------------------------------------------ 客户端识别
+def _client_ip():
+    """取真实客户端 IP：优先反代头，其次 remote_addr。"""
+    xff = request.headers.get("X-Forwarded-For", "")
+    if xff:
+        ip = xff.split(",")[0].strip()
+        if ip:
+            return ip
+    ip = request.headers.get("X-Real-IP", "").strip()
+    if ip:
+        return ip
+    return (request.remote_addr or "").strip()
+
+
+def _is_lan_ip(ip):
+    """内网/回环/链路本地地址 -> True。"""
+    if not ip:
+        return False
+    raw = ip.split("%")[0]
+    try:
+        a = ipaddress.ip_address(raw)
+    except Exception:
+        return False
+    return bool(a.is_private or a.is_loopback or a.is_link_local)
+
+
+def _use_direct():
+    """当前请求该走直连（302）还是中继。"""
+    mode = config.PLAY_MODE
+    if mode == "direct":
+        return True
+    if mode == "relay":
+        return False
+    return _is_lan_ip(_client_ip())      # auto
+
+
 # ------------------------------------------------------------------ 鉴权
 # 静态资源不需要令牌，否则设了 JP_TOKEN 后界面加载不出来
 # /api.php 与 /pic 有各自的 key 校验（JP_API_KEY），不走界面令牌
@@ -414,6 +451,9 @@ def ui_hls():
 @app.route("/play/<vid>/<nid>.m3u8")
 @app.route("/play/<vid>/<nid>")
 def play(vid, nid):
+    """内网客户端 302 直连 CDN（省带宽），外网客户端走中继。"""
+    if not _use_direct():
+        return _relay_playlist(vid, nid, int(request.args.get("q") or 0))
     want = int(request.args.get("q") or 0)
     try:
         item, ttl = resolve(vid, nid, want)
@@ -501,11 +541,8 @@ def _relay_link(url):
     return "/relay/seg?u=" + _seg_token(url)
 
 
-@app.route("/relay/<vid>/<nid>.m3u8")
-@app.route("/relay/<vid>/<nid>")
-def relay_playlist(vid, nid):
+def _relay_playlist(vid, nid, want=0):
     """把 m3u8 里的分片地址改写成本服务的中继地址，客户端全程只跟本服务打交道。"""
-    want = int(request.args.get("q") or 0)
     try:
         item, _ = resolve(vid, nid, want)
     except JPError as e:
@@ -540,6 +577,13 @@ def relay_playlist(vid, nid):
     resp = Response("\n".join(out) + "\n", mimetype="application/vnd.apple.mpegurl")
     resp.headers["Cache-Control"] = "no-store"
     return resp
+
+
+@app.route("/relay/<vid>/<nid>.m3u8")
+@app.route("/relay/<vid>/<nid>")
+def relay_playlist(vid, nid):
+    """强制中继（老 .strm 里的地址仍可用）。"""
+    return _relay_playlist(vid, nid, int(request.args.get("q") or 0))
 
 
 @app.route("/relay/seg")
@@ -628,6 +672,24 @@ def api_types():
     })
 
 
+@app.route("/api/whoami")
+def api_whoami():
+    """自检：服务端看到的你的 IP、是否内网、当前会走直连还是中继。"""
+    ip = _client_ip()
+    lan = _is_lan_ip(ip)
+    direct = _use_direct()
+    return jsonify({
+        "ok": True,
+        "client_ip": ip,
+        "is_lan": lan,
+        "play_mode": config.PLAY_MODE,
+        "decision": "direct(302直连)" if direct else "relay(中继转发)",
+        "x_forwarded_for": request.headers.get("X-Forwarded-For", ""),
+        "x_real_ip": request.headers.get("X-Real-IP", ""),
+        "remote_addr": request.remote_addr,
+    })
+
+
 @app.route("/api/stats")
 def api_stats():
     s = db.stats()
@@ -638,6 +700,7 @@ def api_stats():
     s["strm_count"] = settings.strm_count()
     s["catalog_complete"] = settings.catalog_complete()
     s["relay"] = bool(config.RELAY)
+    s["play_mode"] = config.PLAY_MODE
     s["last_finish"] = settings.last_finish()
     s["next_run"] = scheduler.next_run_at()
     s["interval_hours"] = config.INTERVAL_HOURS
@@ -701,6 +764,7 @@ def api_settings_get():
         "ok": True,
         "settings": {"public_base": settings.public_base(), "api_key": settings.api_key()},
         "cms_url": _cms_url(),
+        "play_mode": config.PLAY_MODE,
         "next_run": scheduler.next_run_at(),
         "interval_hours": config.INTERVAL_HOURS,
         "last_finish": settings.last_finish(),

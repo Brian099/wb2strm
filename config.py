@@ -64,7 +64,20 @@ DEFAULT_QUALITY = int(os.environ.get("JP_DEFAULT_QUALITY", "1080"))
 # 播放方式：1=中继（所有流量经本服务转发，兼容性最好）
 #           0=直连（302 跳转，省带宽；但 CDN 签名与请求 IP 绑定，
 #             只有和本服务同一出口 IP 的播放器能用）
-RELAY = int(os.environ.get("JP_RELAY", "1"))
+# 播放模式：auto=按客户端 IP 自动（内网直连、外网中继）
+#           direct=全部 302 直连（省带宽，要求同出口 IP）
+#           relay=全部中继（最稳，费带宽）
+_play_mode = os.environ.get("JP_PLAY_MODE", "").strip().lower()
+if not _play_mode:
+    # 兼容旧配置：有 JP_RELAY 就按它换算，都没有则默认 auto
+    if "JP_RELAY" in os.environ:
+        _play_mode = "direct" if os.environ.get("JP_RELAY") == "0" else "relay"
+    else:
+        _play_mode = "auto"
+if _play_mode not in ("auto", "direct", "relay"):
+    _play_mode = "auto"
+PLAY_MODE = _play_mode
+RELAY = (PLAY_MODE == "relay")   # 兼容旧代码引用
 # WSGI 工作线程数：中继模式下每个分片转发会占用一个线程，
 # 线程太少会互相排队（多路同时播放时会卡）
 THREADS = int(os.environ.get("JP_THREADS", "24"))
