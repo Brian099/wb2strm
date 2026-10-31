@@ -375,6 +375,10 @@ video { width: 100%; max-height: 70vh; display: block; background: #000; }
 .panel h3 { margin: 0 0 6px; font-size: 15px; }
 .panel p { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
 
+/* 运维页是纵向堆叠的面板，靠这里撑开间距（.ops-grid 内部靠 grid gap，不会重复） */
+#ops > .panel { margin-bottom: 16px; }
+#ops > .panel:last-child { margin-bottom: 0; }
+
 .stat-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
 .stat {
   flex: 1;
