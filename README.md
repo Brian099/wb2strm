@@ -305,7 +305,7 @@ vod_play_from, vod_play_url, vod_douban_id, vod_douban_score, vod_score, vod_sco
 | 你的环境 | 建议 | 原因 |
 |---|---|---|
 | **DDNS + 端口映射** | `auto` | NAT 保留真实客户端 IP，内外网判断准确 |
-| **frp 内网穿透** | `auto` | frp 隧道拿不到真实 IP，会自动回退成中继（等价 relay）；配了内网 DNS 分流后，内网设备仍能直连 |
+| **frp 内网穿透** | `relay` | 隧道拿不到真实客户端 IP；写 `auto` 也会自动回退成中继，效果等价但 `relay` 更明确 |
 | **纯内网自用** | `direct` | 省掉全部视频带宽（NAS 挂代理/VPN 时改用 `relay`） |
 | 不确定 / 就想省事 | `relay`（默认） | 一定能播，只是费带宽 |
 
