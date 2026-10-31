@@ -451,7 +451,7 @@ Kodi：直接添加 `strm` 目录为视频源即可。
 | `JP_DB` | `data/wb2strm.db` | 数据库路径 |
 | `JP_STRM_ROOT` | `strm` | STRM 导出根目录 |
 | `JP_CACHE_TTL` | `1800` | 取流缓存秒数 |
-| `JP_PLAY_MODE` | `relay` | 播放方式：`relay` 全中继（默认）/ `auto` 按客户端 IP 自动 / `direct` 全直连 |
+| `JP_PLAY_MODE` | `relay` | 播放方式：`relay` 全中继 / `auto` 按客户端 IP 自动 / `direct` 全直连（compose 里当前是 `auto`） |
 | `JP_THREADS` | `24` | 工作线程数（中继每路播放占用线程） |
 | `JP_IMAGE_WORKERS` | `8` | 手动勾选「下载海报」时的并发数 |
 | `JP_DEFAULT_QUALITY` | `1080` | 默认清晰度 |
