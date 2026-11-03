@@ -10,6 +10,7 @@ import threading
 import time
 
 import config
+import subcat
 
 _local = threading.local()
 
@@ -246,9 +247,14 @@ def get_episodes(vod_id):
     return [dict(r) for r in rows]
 
 
-def _where(type_id="", year="", keyword="", cat="", need_detail=None, changed=False):
+def _where(type_id="", year="", keyword="", cat="", need_detail=None, changed=False,
+           sub=""):
     sql = " WHERE 1=1"
     args = []
+    if sub:
+        # 二级分类（目前只有电视剧有）：用 subcat.SQL 这个 CASE 表达式筛选
+        sql += " AND (%s)=?" % subcat.SQL
+        args.append(str(sub))
     if cat:
         sql += " AND COALESCE(NULLIF(cat,''), type_name)=?"
         args.append(str(cat))
@@ -277,16 +283,17 @@ SLIM_COLS = ("vod_id", "name", "pic", "remarks", "year", "cat", "type_id", "type
 
 
 def list_videos(type_id="", year="", keyword="", cat="", need_detail=None, changed=False,
-                limit=100, offset=0, slim=False):
-    sql, args = _where(type_id, year, keyword, cat, need_detail, changed)
+                limit=100, offset=0, slim=False, sub=""):
+    sql, args = _where(type_id, year, keyword, cat, need_detail, changed, sub)
     cols = ", ".join(SLIM_COLS) if slim else "*"
     sql = "SELECT " + cols + " FROM video" + sql + " ORDER BY vod_id DESC LIMIT ? OFFSET ?"
     args += [int(limit), int(offset)]
     return [dict(r) for r in _conn().execute(sql, args).fetchall()]
 
 
-def count_videos(type_id="", year="", keyword="", cat="", need_detail=None, changed=False):
-    sql, args = _where(type_id, year, keyword, cat, need_detail, changed)
+def count_videos(type_id="", year="", keyword="", cat="", need_detail=None, changed=False,
+                 sub=""):
+    sql, args = _where(type_id, year, keyword, cat, need_detail, changed, sub)
     row = _conn().execute("SELECT COUNT(*) n FROM video" + sql, args).fetchone()
     return int(row["n"])
 
@@ -298,6 +305,19 @@ def cats():
         "FROM video GROUP BY cat_name ORDER BY n DESC"
     ).fetchall()
     return [{"name": r["cat_name"], "count": r["n"]} for r in rows]
+
+
+def subcats(cat=subcat.TV_CAT):
+    """某个一级分类下的二级分类及数量（目前只有电视剧有）。"""
+    rows = _conn().execute(
+        "SELECT (%s) AS s, COUNT(*) AS n FROM video "
+        "WHERE COALESCE(NULLIF(cat,''), type_name)=? GROUP BY s ORDER BY n DESC"
+        % subcat.SQL, (cat,)).fetchall()
+    out = [{"name": r["s"], "count": r["n"]} for r in rows if r["s"]]
+    # 按固定顺序排列，界面看起来稳定
+    order = {n: i for i, n in enumerate(subcat.ORDER)}
+    out.sort(key=lambda x: order.get(x["name"], 99))
+    return out
 
 
 def years():

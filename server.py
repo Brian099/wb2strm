@@ -652,11 +652,12 @@ def api_videos():
     type_id = request.args.get("type_id", "")
     year = request.args.get("year", "")
     q = request.args.get("q", "")
+    sub = request.args.get("sub", "")
     limit = min(int(request.args.get("limit", 60)), 300)
     offset = int(request.args.get("offset", 0))
-    rows = db.list_videos(type_id=type_id, year=year, keyword=q, cat=cat,
+    rows = db.list_videos(type_id=type_id, year=year, keyword=q, cat=cat, sub=sub,
                           limit=limit, offset=offset, slim=True)
-    total = db.count_videos(type_id=type_id, year=year, keyword=q, cat=cat)
+    total = db.count_videos(type_id=type_id, year=year, keyword=q, cat=cat, sub=sub)
     return jsonify({"ok": True, "total": total, "count": len(rows), "list": rows})
 
 
@@ -688,7 +689,9 @@ def api_types():
     with _types_lock:
         if _types_cache["data"] and time.time() - _types_cache["at"] < 60:
             return jsonify(_types_cache["data"])
-    data = {"ok": True, "cats": db.cats(), "years": db.years()}
+    data = {"ok": True, "cats": db.cats(),
+            "subcats": {"电视剧": db.subcats("电视剧")},
+            "years": db.years()}
     with _types_lock:
         _types_cache["at"] = time.time()
         _types_cache["data"] = data

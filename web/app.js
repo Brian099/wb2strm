@@ -4,7 +4,7 @@
 
   const TOKEN = new URLSearchParams(location.search).get("token") || "";
   const PAGE_SIZE = 60;
-  const state = { cat: "", year: "", q: "", page: 1, total: 0 };
+  const state = { cat: "", year: "", q: "", page: 1, total: 0, sub: "" };
   let relayMode = true;   // 由 /api/stats 决定：true 走中继，false 走 302
   let currentVideo = null;
   let hls = null;
@@ -66,6 +66,7 @@
     } catch (e) {
       return;
     }
+    SUBCATS = data.subcats || {};
     const chips = $("chips");
     chips.innerHTML = "";
     const total = (data.cats || []).reduce((a, c) => a + c.count, 0);
@@ -79,6 +80,8 @@
       d.onclick = () => setCat(c.name);
       chips.appendChild(d);
     });
+
+    renderSubcats();
 
     const yb = $("yearbar");
     yb.innerHTML = "";
@@ -105,6 +108,7 @@
   }
 
   function setCat(name) {
+    if (state.cat !== name) state.sub = "";
     state.cat = name;
     state.page = 1;
     document.querySelectorAll("#chips .chip").forEach((c) => c.classList.remove("active"));
@@ -113,7 +117,40 @@
         c.classList.add("active");
       }
     });
+    renderSubcats();
     loadList();
+  }
+
+  // 二级分类（只有电视剧有）
+  let SUBCATS = {};
+
+  function setSub(name) {
+    state.sub = name;
+    state.page = 1;
+    renderSubcats();
+    loadList();
+  }
+
+  function renderSubcats() {
+    const box = $("subchips");
+    if (!box) return;
+    const list = SUBCATS[state.cat] || [];
+    if (!list.length) {
+      box.style.display = "none";
+      box.innerHTML = "";
+      return;
+    }
+    box.style.display = "";
+    box.innerHTML = "";
+    const total = list.reduce((a, c) => a + c.count, 0);
+    const mk = (label, value, count, active) => {
+      const d = el("div", "chip" + (active ? " active" : ""));
+      d.innerHTML = label + "<b>" + count + "</b>";
+      d.onclick = () => setSub(value);
+      return d;
+    };
+    box.appendChild(mk("全部", "", total, state.sub === ""));
+    list.forEach((c) => box.appendChild(mk(c.name, c.name, c.count, state.sub === c.name)));
   }
 
   // ---------------------------------------------------------------- 列表
@@ -162,6 +199,7 @@
     try {
       const data = await api("/api/videos", {
         cat: state.cat,
+        sub: state.sub,
         year: state.year,
         q: state.q,
         limit: PAGE_SIZE,
