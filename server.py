@@ -270,9 +270,13 @@ def _job_full(types="", pages=None, workers=None, limit=0, export=True, clean=Fa
             sync.log("① 同步目录：%s，全量抓取（断点续爬，已有的页会跳过）" % why)
         else:
             sync.log("① 同步目录：增量，每片最多 %s 页" % (pages or "全部"))
+        # 增量时多扫一遍热播排序：老 id 的连载剧（仙逆这类）只在热播榜靠前，
+        # 只扫「最新入库」永远扫不到它们的更新
+        sorts = ["1"] if full_mode else (["1"] + config.SORTS_EXTRA)
         res = sync.sync_list(a, sel, years, areas, limit=int(limit or 0),
                              sleep=config.LIST_SLEEP,
-                             force=not full_mode, max_pages=int(pages or 0))
+                             force=not full_mode, max_pages=int(pages or 0),
+                             sorts=sorts)
         if full_mode:
             if res.get("complete"):
                 settings.set_catalog_complete(True)

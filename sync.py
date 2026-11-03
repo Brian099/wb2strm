@@ -106,9 +106,11 @@ def to_video(item, tid, type_name):
     }
 
 
-def sync_list(api, types, years, areas, limit=0, sleep=None, force=False, max_pages=0):
+def sync_list(api, types, years, areas, limit=0, sleep=None, force=False, max_pages=0,
+              sorts=None):
     if sleep is None:
         sleep = config.LIST_SLEEP
+    sorts = sorts or ["1"]
     # 先算出每个分类要扫多少页，便于展示总进度
     plan = []
     type_failed = 0
@@ -125,12 +127,18 @@ def sync_list(api, types, years, areas, limit=0, sleep=None, force=False, max_pa
             pg = int(math.ceil(total / float(config.PAGE_SIZE))) if total else 0
             if max_pages and max_pages > 0:
                 pg = min(pg, max_pages)
-            if pg:
-                pages_of.append((kw, pg))
+            if not pg:
+                continue
+            for st in sorts:
+                kw2 = dict(kw)
+                if st and st != "1":
+                    kw2["sort"] = st
+                pages_of.append((kw2, pg))
         if pages_of:
             plan.append((tid, tname, pages_of))
-            log("分类 %s(%s)：%d 个切片，共 %d 页"
-                % (tname, tid, len(pages_of), sum(p for _, p in pages_of)))
+            log("分类 %s(%s)：%d 个切片，共 %d 页%s"
+                % (tname, tid, len(pages_of), sum(p for _, p in pages_of),
+                   ("（排序 " + "+".join(sorts) + "）") if len(sorts) > 1 else ""))
 
     total_pages = sum(p for _, _, po in plan for _, p in po)
     page_done = 0
@@ -147,6 +155,8 @@ def sync_list(api, types, years, areas, limit=0, sleep=None, force=False, max_pa
                     return {"rows": done, "pages": total_pages, "failed": page_failed,
                             "types_failed": type_failed, "complete": False}
                 key = "list:%s:%s:%s:%s" % (tid, kw.get("year"), kw.get("area"), pg)
+                if str(kw.get("sort") or "1") != "1":
+                    key += ":" + str(kw.get("sort"))
                 if not force and db.get_state(key) == "1":
                     page_done += 1
                     progress("同步目录", page_done, total_pages)

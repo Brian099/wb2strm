@@ -104,6 +104,10 @@ PAGES = int(os.environ.get("JP_PAGES", "5"))
 WORKERS = int(os.environ.get("JP_WORKERS", "2"))
 # 请求间隔（秒）：列表页 / 详情页。站点会限流（code=99600），慢一点更稳
 LIST_SLEEP = float(os.environ.get("JP_LIST_SLEEP", "0.5"))
+# 增量扫描时额外扫的排序（逗号分隔）。sort=1 是最新入库，sort=3 是热播，
+# 热播列表能覆盖「老剧更新」——只扫 sort=1 的话，像仙逆这种老 id 的连载剧
+# 排在几十页之后，永远扫不到，集数就卡住不更新。
+SORTS_EXTRA = [x.strip() for x in os.environ.get("JP_SORTS_EXTRA", "3").split(",") if x.strip()]
 DETAIL_SLEEP = float(os.environ.get("JP_DETAIL_SLEEP", "0.3"))
 # 自动更新间隔（小时），从上一次「跑完」开始计时
 INTERVAL_HOURS = float(os.environ.get("JP_INTERVAL_HOURS", "24"))
