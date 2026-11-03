@@ -690,7 +690,8 @@ def api_types():
         if _types_cache["data"] and time.time() - _types_cache["at"] < 60:
             return jsonify(_types_cache["data"])
     data = {"ok": True, "cats": db.cats(),
-            "subcats": {"电视剧": db.subcats("电视剧")},
+            "subcats": {c: db.subcats(c) for c in ("电视剧", "动漫")
+                        if db.subcats(c)},
             "years": db.years()}
     with _types_lock:
         _types_cache["at"] = time.time()

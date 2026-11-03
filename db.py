@@ -315,7 +315,8 @@ def subcats(cat=subcat.TV_CAT):
         % subcat.SQL, (cat,)).fetchall()
     out = [{"name": r["s"], "count": r["n"]} for r in rows if r["s"]]
     # 按固定顺序排列，界面看起来稳定
-    order = {n: i for i, n in enumerate(subcat.ORDER)}
+    seq = subcat.ORDER.get(cat, [])
+    order = {n: i for i, n in enumerate(seq)}
     out.sort(key=lambda x: order.get(x["name"], 99))
     return out
 

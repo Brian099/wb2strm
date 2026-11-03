@@ -257,8 +257,9 @@ def export(root=None, types="", limit=0, nfo=None, images=None, clean=False, ep_
             continue
 
         type_dir = safe_name(v.get("cat") or v.get("type_name") or "未分类")
-        # 电视剧再分一层（国产剧/欧美剧/港台剧/日韩剧/其他剧），电影等不分
-        sub_name = subcat.for_video(v.get("cat"), v.get("area"))
+        # 电视剧按地区分（国产/欧美/港台/日韩/其他剧）、动漫按语言分（国语/日语/英语/其他），
+        # 电影、短剧、综艺不分
+        sub_name = subcat.for_video(v.get("cat"), v.get("area"), v.get("lang"))
         if sub_name:
             type_dir = os.path.join(type_dir, safe_name(sub_name))
         title = safe_name(v["name"] or v["vod_id"])
