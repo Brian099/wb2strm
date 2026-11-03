@@ -20,6 +20,10 @@ RUN apt-get update \
 WORKDIR /app
 
 # 先装依赖，利用镜像层缓存
+# 构建号：workflow 会传进来，运行时可从 /api/stats 看到
+ARG GIT_SHA=dev
+ENV WB2STRM_BUILD=$GIT_SHA
+
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 # 国内网络慢就换成镜像源：
