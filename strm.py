@@ -154,10 +154,25 @@ class _Writer:
             self._dirs.add(d)
 
     def write(self, path, text):
+        """写文件。内容一模一样就不写 —— 避免改 mtime 让 Emby 以为元数据变了。
+
+        NFO 是每次都重新生成的（没做 manifest 判断），如果每次都覆盖，
+        Emby 会把整库几千个条目重新扫一遍，白忙一场。
+        """
         self.ensure_dir(path)
+        try:
+            with open(path, encoding="utf-8") as f:
+                if f.read() == text:
+                    self.files += 1
+                    return False
+        except FileNotFoundError:
+            pass
+        except Exception:
+            pass
         with open(path, "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
         self.files += 1
+        return True
 
 
 def _download_images(items, workers=8):
