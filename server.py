@@ -824,7 +824,9 @@ def api_settings_post():
         nfo = bool(d.get("nfo"))
         images = bool(d.get("images"))
         ep_nfo = bool(d.get("ep_nfo"))
-        job.start("重新导出 STRM", lambda: _job_strm(nfo, images, False, "", 0, ep_nfo))
+        # 目录结构可能变过（比如加了二级分类），必须带上 clean，
+        # 否则旧路径的 .strm 会留在磁盘上，Emby 里会出现重复条目
+        job.start("重新导出 STRM", lambda: _job_strm(nfo, images, True, "", 0, ep_nfo))
     return jsonify({
         "ok": True,
         "settings": {"public_base": settings.public_base(), "api_key": settings.api_key()},

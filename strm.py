@@ -316,19 +316,60 @@ def export(root=None, types="", limit=0, nfo=None, images=None, clean=False, ep_
 
     # ---------- 4. 清理孤儿 ----------
     removed = 0
+    pruned = 0
     if clean:
         t = time.time()
-        for old_path in list(manifest.keys()):
-            if old_path in now_manifest:
+        # 全量对账：磁盘上凡是不在本次清单里的 .strm 一律删掉。
+        # 比「只删 manifest 里记过的」可靠 —— manifest 被覆盖过 / 手工拷进来的
+        # 旧文件也能清掉（换目录结构后这类残留最多）。
+        for d, _dirs, files in os.walk(root):
+            for f in files:
+                if not f.lower().endswith(".strm"):
+                    continue
+                fp = os.path.join(d, f)
+                if os.path.normcase(fp) in now_manifest:
+                    continue
+                try:
+                    os.remove(fp)
+                    removed += 1
+                except Exception:
+                    continue
+                # 同名的 .nfo 一并删掉，别留下孤立元数据
+                nfo_path = os.path.splitext(fp)[0] + ".nfo"
+                try:
+                    if os.path.exists(nfo_path):
+                        os.remove(nfo_path)
+                except Exception:
+                    pass
+
+        # 删掉「整棵子树里没有任何 .strm」的目录（自底向上）。
+        # 换过目录结构（比如加了二级分类）之后，旧目录里往往只剩
+        # poster.jpg / tvshow.nfo / 每集 .nfo，不是空目录但也已经没用了，
+        # 一并清掉，否则 Emby 里会出现重复条目。
+        for d, _dirs, files in os.walk(root, topdown=False):
+            if os.path.abspath(d) == os.path.abspath(root):
+                continue
+            if any(f.lower().endswith(".strm") for f in files):
                 continue
             try:
-                if os.path.exists(old_path):
-                    os.remove(old_path)
-                    removed += 1
+                rest = os.listdir(d)
+            except Exception:
+                continue
+            if any(os.path.isdir(os.path.join(d, x)) for x in rest):
+                continue          # 还有子目录（子树里有 strm），保留
+            try:
+                for x in rest:
+                    fp = os.path.join(d, x)
+                    if os.path.isfile(fp):
+                        os.remove(fp)
+                os.rmdir(d)
+                pruned += 1
             except Exception:
                 pass
-        if removed:
-            log("清理孤儿 .strm：%d 个，耗时 %.1fs" % (removed, time.time() - t))
+
+        if removed or pruned:
+            log("清理孤儿：%d 个 .strm、%d 个废弃目录，耗时 %.1fs"
+                % (removed, pruned, time.time() - t))
 
     # ---------- 5. 写 manifest ----------
     t = time.time()
