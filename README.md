@@ -428,6 +428,41 @@ Emby / Jellyfin 建库：
 
 Kodi：直接添加 `strm` 目录为视频源即可。
 
+## 确认镜像是否更新成功
+
+`/api/stats` 里的 `build` 字段就是镜像构建时的 git commit：
+
+```bash
+curl -s http://<宿主机IP>:8989/api/stats | grep -o '"build":"[^"]*"'
+# "build":"428778bxxxxx"
+```
+
+进容器直接看更直观：
+
+```bash
+docker compose exec wb2strm python -c "import subcat; print('subcat.py 在')"
+```
+
+### ⚠️ compose 里不要同时留 `build: .`
+
+如果 `docker-compose.yml` 里还有 `build: .`，那 `docker compose pull` **不会拉镜像**，
+`up -d` 会用**你本地那份源码**重新构建 —— 源码没 `git pull` 就还是旧代码。
+
+正确写法：
+
+```yaml
+  wb2strm:
+    image: brian9909/wb2strm:latest
+    # build: .        ← 注释掉
+```
+
+更新步骤：
+
+```bash
+docker compose pull
+docker compose up -d --force-recreate
+```
+
 ## 配置（环境变量）
 
 **抓取相关**（写在 compose 里，改完 `docker compose up -d` 生效）
