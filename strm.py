@@ -278,7 +278,9 @@ def export(root=None, types="", limit=0, nfo=None, images=None, clean=False, ep_
             url = play_url(v["vod_id"], ep["nid"])
             path = os.path.join(series_dir, title + ".strm")
             total_files += 1
-            if manifest.get(os.path.normcase(path)) != url:
+            # 不能只比对地址：文件被手动删掉 / 目录被清空时，manifest 里还留着旧记录，
+            # 只比地址会误判成「没变化」而跳过，结果磁盘上什么都没有。
+            if manifest.get(os.path.normcase(path)) != url or not os.path.exists(path):
                 w.write(path, url + "\n")
                 written += 1
             now_manifest[os.path.normcase(path)] = url
@@ -291,7 +293,7 @@ def export(root=None, types="", limit=0, nfo=None, images=None, clean=False, ep_
                 url = play_url(v["vod_id"], ep["nid"])
                 path = os.path.join(season_dir, "%s S01E%02d.strm" % (title, seq))
                 total_files += 1
-                if manifest.get(os.path.normcase(path)) != url:
+                if manifest.get(os.path.normcase(path)) != url or not os.path.exists(path):
                     w.write(path, url + "\n")
                     written += 1
                 now_manifest[os.path.normcase(path)] = url
