@@ -1,10 +1,10 @@
 services:
-  wb2strm:
+  jpcms:
     # 从 Docker Hub 拉取已发布镜像（linux/amd64 + linux/arm64 双架构）
-    image: brian9909/wb2strm:latest
+    image: brian9909/jpcms:latest
     # 想本地构建：把上面 image 行注释掉，换成下面这行，再 docker compose up -d --build
     # build: .
-    container_name: wb2strm
+    container_name: jpcms
     restart: unless-stopped
     ports:
       - "8989:8989"
@@ -69,7 +69,7 @@ services:
       # 建议只用字母、数字、下划线、短横线。
       JP_API_KEY: ""
       # 该接口 vod_play_from 显示的线路名
-      JP_API_PLAY_FROM: "wb2strm"
+      JP_API_PLAY_FROM: "jpcms"
       # CMS 接口每页条数（标准是 20，**接 fnmedia-ext 时不要动**）。
       # 原因：ext 用 `pagecount × 20` 估算能浏览多少部（PAGE_SIZE 写死在它的 catalog.py 里），
       # 而我们返回的 pagecount 会随本值变小 —— 调大反而让 ext 显示得更少：

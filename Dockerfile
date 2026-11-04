@@ -1,4 +1,4 @@
-# wb2strm · 网页资源转 STRM
+# JPCMS · 网页资源转 STRM
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -22,7 +22,7 @@ WORKDIR /app
 # 先装依赖，利用镜像层缓存
 # 构建号：workflow 会传进来，运行时可从 /api/stats 看到
 ARG GIT_SHA=dev
-ENV WB2STRM_BUILD=$GIT_SHA
+ENV JPCMS_BUILD=$GIT_SHA
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt

@@ -1,8 +1,8 @@
-# wb2strm
+# JPCMS
 
 [![Build and Push Docker Image](https://github.com/Brian099/wb2strm/actions/workflows/docker.yml/badge.svg)](https://github.com/Brian099/wb2strm/actions/workflows/docker.yml)
-[![Docker Hub](https://img.shields.io/docker/pulls/brian9909/wb2strm?label=docker%20pulls)](https://hub.docker.com/r/brian9909/wb2strm)
-[![Image Size](https://img.shields.io/docker/image-size/brian9909/wb2strm/latest?label=image%20size)](https://hub.docker.com/r/brian9909/wb2strm)
+[![Docker Hub](https://img.shields.io/docker/pulls/brian9909/jpcms?label=docker%20pulls)](https://hub.docker.com/r/brian9909/jpcms)
+[![Image Size](https://img.shields.io/docker/image-size/brian9909/jpcms/latest?label=image%20size)](https://hub.docker.com/r/brian9909/jpcms)
 
 > **免责声明**
 > 本项目仅为技术学习用途的**客户端工具**：不存储、不分发任何视频文件，也不提供任何内容服务。
@@ -53,7 +53,7 @@ https://cdn.example.com/.../index.m3u8?auth_key=1700000000-e0552fdf-0-65902ef5..
 ## 目录结构
 
 ```
-wb2strm/
+jpcms/
 ├─ config.py     配置（站点、DB 路径、对外地址、令牌、缓存时长）
 ├─ jpapi.py      站点接口客户端（签名 / 列表 / 详情 / 取流）
 ├─ db.py         SQLite 存储层
@@ -100,7 +100,7 @@ wb2strm/
 ## 快速开始
 
 ```bash
-cd wb2strm
+cd jpcms
 
 # 1) 试跑：只抓某个分类 60 部，并补 12 部的分集
 python sync.py list --types 88 --limit 60
@@ -118,12 +118,12 @@ python strm.py --nfo --images
 
 ## Docker 部署（拉取已发布镜像）
 
-镜像发布在 Docker Hub：**[brian9909/wb2strm](https://hub.docker.com/r/brian9909/wb2strm)**，同时提供 `linux/amd64` 与 `linux/arm64`（ARM 架构的 NAS 可直接用）。
+镜像发布在 Docker Hub：**[brian9909/jpcms](https://hub.docker.com/r/brian9909/jpcms)**，同时提供 `linux/amd64` 与 `linux/arm64`（ARM 架构的 NAS 可直接用）。
 
-`docker-compose.yml` 里默认就是 `image: brian9909/wb2strm:latest`，**不需要本地构建**，容器名固定为 `wb2strm`。
+`docker-compose.yml` 里默认就是 `image: brian9909/jpcms:latest`，**不需要本地构建**，容器名固定为 `jpcms`。
 
 ```bash
-cd wb2strm
+cd jpcms
 
 # 1) 先改 docker-compose.yml 里的 JP_PUBLIC_BASE 为宿主机局域网 IP
 #    JP_PUBLIC_BASE: "http://192.168.1.147:8989"
@@ -151,12 +151,12 @@ docker compose pull && docker compose up -d
 **不想用 compose 也可以直接 run**
 
 ```bash
-docker run -d --name wb2strm \
+docker run -d --name jpcms \
   --restart unless-stopped \
   -p 8989:8989 \
   -v $PWD/data:/app/data \
   -v $PWD/strm:/app/strm \
-  brian9909/wb2strm:latest
+  brian9909/jpcms:latest
 ```
 
 **`docker-compose.yml` 里要改的**：`JP_PUBLIC_BASE`（宿主机局域网 IP）和抓取参数。
@@ -196,8 +196,8 @@ docker compose up -d --build
 ```bash
 docker compose ps                              # 状态 / 健康
 docker compose logs -f --tail 100              # 实时日志
-docker compose exec wb2strm python sync.py stats            # 查库存
-docker compose exec wb2strm python strm.py --nfo --images   # 命令行导出
+docker compose exec jpcms python sync.py stats            # 查库存
+docker compose exec jpcms python strm.py --nfo --images   # 命令行导出
 docker compose restart
 docker compose down                            # 停止（数据保留在 ./data）
 docker compose pull && docker compose up -d    # 更新镜像
@@ -207,7 +207,7 @@ docker compose pull && docker compose up -d    # 更新镜像
 
 - `JP_PUBLIC_BASE` 是**写进 .strm 文件**的地址，用 `127.0.0.1` 只有宿主机自己能播，电视/手机要填局域网 IP
 - 容器默认以 root 运行（NAS 上写宿主机目录最省事）；想用非 root：`chown -R 1000:1000 ./data ./strm` 后取消 compose 里 `user:` 那行注释
-- Emby/Jellyfin 也要跑在 Docker 里时，把 `./strm` 再挂给 Emby 容器（例如 `- /volume1/docker/wb2strm/strm:/media/wb2strm`）
+- Emby/Jellyfin 也要跑在 Docker 里时，把 `./strm` 再挂给 Emby 容器（例如 `- /volume1/docker/jpcms/strm:/media/jpcms`）
 - 端口冲突就改 compose 里的 `ports`（`"8989:8989"` 冒号左边是宿主机端口，容器内固定 8989）
 
 ## 全量同步
@@ -259,7 +259,7 @@ vod_play_from, vod_play_url, vod_douban_id, vod_douban_score, vod_score, vod_sco
 
 鉴权：在运维页「采集接口」里设置**接口密码**后，请求必须带 `&key=<密码>`；
 留空则公开。密码存在数据库里，改完即时生效，不用重启。
-`vod_play_from` 的线路名由 `JP_API_PLAY_FROM` 控制，默认 `wb2strm`。
+`vod_play_from` 的线路名由 `JP_API_PLAY_FROM` 控制，默认 `jpcms`。
 
 > 加了密钥后，TVBox 里填接口地址时带上 key：
 > `http://<宿主机IP>:8989/api.php/provide/vod?key=你的密钥`
@@ -376,7 +376,7 @@ proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 | 方案 | `.strm` 里填什么 | 前提 | 代价 |
 |---|---|---|---|
 | **A. 让 Emby 转码** | 局域网 IP | Emby 本身已能外网访问 + 有转码性能 | 吃 CPU 与外网上行；部分客户端强制直连会失败 |
-| **B. 子域名反代** | `https://wb2strm.域名.com` | DDNS + 反代 + 证书 | 服务暴露公网，**必须开 token** |
+| **B. 子域名反代** | `https://jpcms.域名.com` | DDNS + 反代 + 证书 | 服务暴露公网，**必须开 token** |
 | **C. 内网穿透** | 隧道给的公网地址 | Cloudflare Tunnel / frp | 同样要 token，延迟略高 |
 
 **先试方案 A**：`.strm` 保持局域网 IP，看外网客户端能不能播。能播就什么都不用动。
@@ -384,14 +384,14 @@ proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 播不了再走方案 B。Caddy 一行搞定证书：
 
 ```caddyfile
-wb2strm.你的域名.com {
+jpcms.你的域名.com {
     reverse_proxy 127.0.0.1:8989
 }
 ```
 
-然后运维页把服务地址改成 `https://wb2strm.你的域名.com`，点「保存并重新生成 STRM」。
+然后运维页把服务地址改成 `https://jpcms.你的域名.com`，点「保存并重新生成 STRM」。
 
-> ⚠️ **必须用子域名，不能用路径前缀**：前端接口是根路径绝对地址（`/api/...`），挂在 `/wb2strm/` 下会 404。
+> ⚠️ **必须用子域名，不能用路径前缀**：前端接口是根路径绝对地址（`/api/...`），挂在 `/jpcms/` 下会 404。
 >
 > ⚠️ **暴露公网必须开 `JP_TOKEN`**：这个服务会给任何请求者签发播放地址，不设令牌等于开了个免费取流接口。
 > 加了之后界面地址要带 `?token=xxx`，生成的 `.strm` 里也会自动带上。
@@ -559,7 +559,7 @@ curl -s http://<宿主机IP>:8989/api/stats | grep -o '"build":"[^"]*"'
 进容器直接看更直观：
 
 ```bash
-docker compose exec wb2strm python -c "import subcat; print('subcat.py 在')"
+docker compose exec jpcms python -c "import subcat; print('subcat.py 在')"
 ```
 
 ### ⚠️ compose 里不要同时留 `build: .`
@@ -570,8 +570,8 @@ docker compose exec wb2strm python -c "import subcat; print('subcat.py 在')"
 正确写法：
 
 ```yaml
-  wb2strm:
-    image: brian9909/wb2strm:latest
+  jpcms:
+    image: brian9909/jpcms:latest
     # build: .        ← 注释掉
 ```
 
@@ -603,7 +603,7 @@ docker compose up -d --force-recreate
 | `JP_LISTEN_PORT` | `8989` | 服务端口 |
 | `JP_TOKEN` | 空 | 非空时界面接口要带 `?token=xxx`（会写进 .strm） |
 | `JP_API_KEY` | 空 | 苹果CMS 接口密码的**首次默认值**，之后以运维页设置为准。非空时地址为 `/api.php/provide/vod/k/<密钥>` |
-| `JP_API_PLAY_FROM` | `wb2strm` | 接口返回的 `vod_play_from` 线路名 |
+| `JP_API_PLAY_FROM` | `jpcms` | 接口返回的 `vod_play_from` 线路名 |
 | `JP_API_LIMIT` | `20` | CMS 接口每页条数。对接 fnmedia-ext 时它按「页数×本值」估算能浏览多少部，`100` 可覆盖近全库 |
 | `JP_DB` | `data/wb2strm.db` | 数据库路径 |
 | `JP_STRM_ROOT` | `strm` | STRM 导出根目录 |

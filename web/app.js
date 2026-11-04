@@ -1,4 +1,4 @@
-/* wb2strm · 前端 */
+/* JPCMS · 前端 */
 (function () {
   "use strict";
 

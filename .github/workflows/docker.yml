@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  IMAGE_NAME: brian9909/wb2strm
+  IMAGE_NAME: brian9909/jpcms
 
 jobs:
   build:

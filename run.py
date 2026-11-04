@@ -31,7 +31,7 @@ def main():
     try:
         from waitress import serve
         print("WSGI      waitress（threads=%d）" % config.THREADS, flush=True)
-        serve(app, host=config.LISTEN_HOST, port=port, threads=config.THREADS, ident="wb2strm")
+        serve(app, host=config.LISTEN_HOST, port=port, threads=config.THREADS, ident="jpcms")
     except ImportError:
         print("WSGI      Flask 内置服务器（未安装 waitress）", flush=True)
         app.run(host=config.LISTEN_HOST, port=port, threaded=True, debug=False)

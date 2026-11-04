@@ -534,7 +534,7 @@ def proxy(vid, nid):
 
 
 def _seg_key():
-    return (config.APP_KEY or "wb2strm").encode("utf-8")
+    return (config.APP_KEY or "jpcms").encode("utf-8")
 
 
 def _seg_token(url):
@@ -740,7 +740,7 @@ def api_stats():
     s["job"] = job.snapshot()
     s["strm_count"] = settings.strm_count()
     s["catalog_complete"] = settings.catalog_complete()
-    s["build"] = os.environ.get("WB2STRM_BUILD", "dev")[:12]
+    s["build"] = os.environ.get("JPCMS_BUILD", "dev")[:12]
     s["relay"] = bool(config.RELAY)
     s["play_mode"] = config.PLAY_MODE
     s["last_finish"] = settings.last_finish()

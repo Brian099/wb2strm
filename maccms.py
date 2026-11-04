@@ -141,7 +141,7 @@ def _play_url(vid, eps):
 
 
 def _vod_item(v, eps):
-    play_from = _text(config.API_PLAY_FROM) or "wb2strm"
+    play_from = _text(config.API_PLAY_FROM) or "jpcms"
     return {
         "vod_id": _int(v["vod_id"]),
         "type_id": _text(v["type_id"]),
