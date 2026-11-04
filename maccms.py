@@ -230,8 +230,11 @@ def _xml_vods(items, pg, page_count, total):
 # ---------------------------------------------------------------- 路由
 @bp.route("/api.php/provide/vod", methods=["GET", "POST"])
 @bp.route("/api.php/provide/vod/", methods=["GET", "POST"])
-@bp.route("/api.php/provide/vod/k/<path:key>", methods=["GET", "POST"])
-@bp.route("/api.php/provide/vod/k/<path:key>/", methods=["GET", "POST"])
+# 注意：这里必须用 <key>（string 转换器，不跨斜杠）而不是 <path:key>。
+# <path:> 会贪婪吃掉末尾的 /，导致「带斜杠」那条规则优先匹配，
+# 于是不带斜杠的地址被 308 重定向 —— httpx 跟随时会因协议/跨 scheme 直接报错。
+@bp.route("/api.php/provide/vod/k/<key>", methods=["GET", "POST"])
+@bp.route("/api.php/provide/vod/k/<key>/", methods=["GET", "POST"])
 def provide(key=None):
     if not _key_ok(key):
         return {"code": 0, "msg": "密钥错误", "page": 1, "pagecount": 1,
