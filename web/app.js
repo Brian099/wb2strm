@@ -533,6 +533,20 @@ const PAGE_SIZE = 63;
     pollJob();
   }
 
+  async function exportNow() {
+    const r = await post("/api/job/strm", {
+      nfo: $("regenNfo").checked,
+      images: $("regenImages").checked,
+      clean: true,
+    });
+    if (!r.ok || !r.data.ok) {
+      toast((r.data && r.data.msg) || "导出任务启动失败");
+      return;
+    }
+    toast("已开始导出 STRM");
+    pollJob();
+  }
+
   // ---------------------------------------------------------------- 事件
   function bind() {
     document.querySelectorAll("nav button").forEach((b) => {
@@ -598,6 +612,7 @@ const PAGE_SIZE = 63;
     $("btnSaveRegen").onclick = saveRegen;
     $("btnSaveKey").onclick = saveApiKey;
     $("btnCopyCms").onclick = copyCmsUrl;
+    $("btnExportNow").onclick = exportNow;
   }
 
   // ---------------------------------------------------------------- 启动

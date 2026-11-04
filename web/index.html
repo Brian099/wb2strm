@@ -56,14 +56,16 @@
       <div class="field">
         <input id="setPublicBase" type="text" placeholder="http://192.168.1.110:8989">
         <button class="btn" id="btnSaveRegen">保存并重新生成 STRM</button>
+        <button class="btn ghost" id="btnExportNow">立即导出 STRM</button>
       </div>
       <div class="field">
         <label><input type="checkbox" id="regenNfo"> 同时生成 NFO 元数据</label>
         <label><input type="checkbox" id="regenImages"> 同时下载海报</label>
       </div>
       <p style="margin:6px 0 0;color:#8b93a3;font-size:12.5px">
-        自动更新会同时生成 NFO 和海报。这里勾选则本次手动生成也一并产出；
-        都不勾则只重写 .strm，最快。
+        <b>自动更新不再生成 STRM</b>（主用下面的采集接口，库更新完就结束）。
+        需要给 Emby / Jellyfin 用时，点「立即导出 STRM」手动导一次；
+        勾选 NFO / 海报则一并产出，都不勾则只写 .strm，最快。
       </p>
       <p id="playModeInfo" style="margin:10px 0 0;color:#8b93a3;font-size:12.5px">播放模式：—</p>
     </div>

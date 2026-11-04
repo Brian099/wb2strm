@@ -114,6 +114,9 @@ SORTS_EXTRA = [x.strip() for x in os.environ.get("JP_SORTS_EXTRA", "3").split(",
 DETAIL_SLEEP = float(os.environ.get("JP_DETAIL_SLEEP", "0.3"))
 # 自动更新间隔（小时），从上一次「跑完」开始计时
 INTERVAL_HOURS = float(os.environ.get("JP_INTERVAL_HOURS", "24"))
+# 自动更新跑完是否顺带导出 STRM。默认关（0）：
+# 主用 CMS 接口（Emby 用 STRM 才需要开），STRM 改为按需手动导出，省掉每轮几十秒的全量比对。
+AUTO_EXPORT = int(os.environ.get("JP_AUTO_EXPORT", "0") or 0) == 1
 # 启动后是否立刻跑一次（默认开启；设为 0 则等第一个间隔到期）
 BOOTSTRAP = int(os.environ.get("JP_BOOTSTRAP", "1"))
 # 强制按「全量」跑一轮（怀疑目录不全时用；全量是断点续爬，抓过的页会跳过，

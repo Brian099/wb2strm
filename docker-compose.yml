@@ -37,6 +37,10 @@ services:
       JP_INTERVAL_HOURS: "24"
       # 启动后是否立刻跑一次（1=是，0=等第一个间隔到期）
       JP_BOOTSTRAP: "1"
+      # 自动更新跑完是否顺带导出 STRM。
+      # 默认 0（不导出）：主用 CMS 接口给飞牛影视/ext 用，库更新完就结束。
+      # 需要给 Emby/Jellyfin 用 STRM 时，在运维页点「立即导出 STRM」手动导一次即可。
+      JP_AUTO_EXPORT: "0"
       # 怀疑目录没抓全时设为 1：按全量跑一轮（断点续爬，不重复抓），跑完自动标记完成
       JP_FORCE_FULL: "0"
       # 播放方式（JP_PLAY_MODE）：

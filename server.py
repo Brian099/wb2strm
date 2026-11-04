@@ -243,11 +243,13 @@ def _job_strm(nfo, images, clean, types, limit, ep_nfo=False):
     strm.export(None, types or "", int(limit or 0), bool(nfo), bool(images), bool(clean), bool(ep_nfo))
 
 
-def _job_full(types="", pages=None, workers=None, limit=0, export=True, clean=False):
+def _job_full(types="", pages=None, workers=None, limit=0, export=None, clean=False):
     """全流程：① 同步目录 -> ② 同步分集 -> ③ 导出 STRM
 
     空库时自动全量（扫全部页），有数据时走增量（每片 config.PAGES 页）。
     """
+    if export is None:
+        export = config.AUTO_EXPORT      # 默认不导出 STRM，只更新库（CMS 优先）
     st0 = db.stats()
     full_mode = bool(config.FORCE_FULL) or not settings.catalog_complete()   # 未扫全 或 强制全量
     if pages is None:
@@ -786,7 +788,7 @@ def api_job_all():
         pages=int(d.get("pages") or 0),
         workers=int(d.get("workers") or 3),
         limit=int(d.get("limit") or 0),
-        export=bool(d.get("export", True)),
+        export=bool(d.get("export", config.AUTO_EXPORT)),
         clean=bool(d.get("clean", False)),
     ))
     return jsonify({"ok": ok, "msg": msg}), (200 if ok else 409)

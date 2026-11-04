@@ -515,6 +515,16 @@ ext 的 guid 去重集合会变大，内存占用上升。建议 600~800 折中�
 我们的 `ac=detail` 按 `vod_id DESC` 排序，所以 ext 深翻拿到的是
 **每个分类最新的 N 部**，浏览体验是合理的。
 
+## 自动更新不再导出 STRM
+
+主用 CMS 接口（飞牛影视 / fnmedia-ext / Emby 的 CMS 插件）时，STRM 是多余的一步：
+每轮要全量比对 10 万+ 文件，几十秒白花。
+
+所以默认 `JP_AUTO_EXPORT=0`：自动更新只做「同步目录 → 同步分集」就结束。
+
+需要给 Emby / Jellyfin 用 STRM 时，运维页点「**立即导出 STRM**」手动导一次
+（勾 NFO / 海报则一并产出）。想恢复自动导出就把环境变量设成 `1`。
+
 ## CMS 接口的密钥放在路径里
 
 非空密钥时，接口地址是：
@@ -583,6 +593,7 @@ docker compose up -d --force-recreate
 | `JP_WORKERS` | `3` | 分集详情并发 |
 | `JP_INTERVAL_HOURS` | `24` | 自动更新间隔（小时），从上次跑完算起 |
 | `JP_BOOTSTRAP` | `1` | 启动后是否立刻跑一次 |
+| `JP_AUTO_EXPORT` | `0` | 自动更新跑完是否顺带导出 STRM。默认关，STRM 改为运维页手动导出 |
 
 **服务相关**
 
