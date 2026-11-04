@@ -534,6 +534,7 @@ docker compose up -d --force-recreate
 | 变量 | 默认 | 说明 |
 |---|---|---|
 | `JP_PAGES` | `5` | 增量时每个切片扫几页（0=全部） |
+| `JP_SORTS_EXTRA` | `3` | 增量时额外扫的排序。`3`=热播榜，用来发现**老剧更新**（只扫最新入库会漏掉仙逆这类长连载）；留空=只扫 sort=1 |
 | `JP_WORKERS` | `3` | 分集详情并发 |
 | `JP_INTERVAL_HOURS` | `24` | 自动更新间隔（小时），从上次跑完算起 |
 | `JP_BOOTSTRAP` | `1` | 启动后是否立刻跑一次 |
@@ -547,6 +548,7 @@ docker compose up -d --force-recreate
 | `JP_TOKEN` | 空 | 非空时界面接口要带 `?token=xxx`（会写进 .strm） |
 | `JP_API_KEY` | 空 | 苹果CMS 接口密码的**首次默认值**，之后以运维页设置为准 |
 | `JP_API_PLAY_FROM` | `wb2strm` | 接口返回的 `vod_play_from` 线路名 |
+| `JP_API_LIMIT` | `20` | CMS 接口每页条数。对接 fnmedia-ext 时它按「页数×本值」估算能浏览多少部，`100` 可覆盖近全库 |
 | `JP_DB` | `data/wb2strm.db` | 数据库路径 |
 | `JP_STRM_ROOT` | `strm` | STRM 导出根目录 |
 | `JP_CACHE_TTL` | `1800` | 取流缓存秒数 |
