@@ -25,7 +25,7 @@ import os
 import re
 import threading
 import time
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin
 
 import requests
 import urllib3
@@ -793,9 +793,10 @@ def api_job_all():
 
 
 def _cms_url():
+    """对外展示的 CMS 接口地址。密钥放在路径里，不怕采集端丢查询串。"""
     u = "%s/api.php/provide/vod" % settings.public_base()
     k = settings.api_key()
-    return (u + "?key=" + k) if k else u
+    return (u + "/k/" + quote(k, safe="")) if k else u
 
 
 @app.route("/api/settings", methods=["GET"])

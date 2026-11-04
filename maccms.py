@@ -74,12 +74,17 @@ def _image_mime(blob, upstream=None):
     return "image/jpeg"
 
 
-def _key_ok():
+def _key_ok(path_key=None):
+    """校验接口密钥。
+
+    只认**路径式**密钥：/api.php/provide/vod/k/<密钥>
+    不再支持 ?key= —— 很多采集端（如 fnmedia-ext 的分类深翻）会把查询串整段丢掉，
+    带参数等于必挂；放在路径里则一定会被保留。
+    """
     need = settings.api_key()
     if not need:
         return True
-    got = _text(request.values.get("key") or request.headers.get("X-Api-Key") or "")
-    return got == need
+    return _text(path_key or "") == need
 
 
 def _base_url():
@@ -225,8 +230,10 @@ def _xml_vods(items, pg, page_count, total):
 # ---------------------------------------------------------------- 路由
 @bp.route("/api.php/provide/vod", methods=["GET", "POST"])
 @bp.route("/api.php/provide/vod/", methods=["GET", "POST"])
-def provide():
-    if not _key_ok():
+@bp.route("/api.php/provide/vod/k/<path:key>", methods=["GET", "POST"])
+@bp.route("/api.php/provide/vod/k/<path:key>/", methods=["GET", "POST"])
+def provide(key=None):
+    if not _key_ok(key):
         return {"code": 0, "msg": "密钥错误", "page": 1, "pagecount": 1,
                 "limit": "20", "total": "0", "list": [], "class": []}
 

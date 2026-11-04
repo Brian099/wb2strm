@@ -490,7 +490,7 @@ const PAGE_SIZE = 63;
     $("cmsUrl").value = d.cms_url || "";
     const hasKey = !!(settings.api_key || "").trim();
     $("cmsHint").textContent = hasKey
-      ? "已设置密码：访问接口必须带 ?key=…（上面的地址已包含）"
+      ? "已设置密码：密钥在地址路径里（…/vod/k/密钥），采集端丢参数也不受影响"
       : "未设置密码：任何人都能访问这个接口，建议设置一个";
     $("cmsHint").style.color = hasKey ? "#8b93a3" : "#fbbf24";
   }

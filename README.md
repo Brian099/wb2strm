@@ -515,6 +515,28 @@ ext 的 guid 去重集合会变大，内存占用上升。建议 600~800 折中�
 我们的 `ac=detail` 按 `vod_id DESC` 排序，所以 ext 深翻拿到的是
 **每个分类最新的 N 部**，浏览体验是合理的。
 
+## CMS 接口的密钥放在路径里
+
+非空密钥时，接口地址是：
+
+```
+http://<地址>/api.php/provide/vod/k/<密钥>
+```
+
+**不支持 `?key=` 了。** 原因：
+
+```python
+# fnmedia-ext/proxy/catalog.py 分类深翻时
+base = source["api"].split("/at/json")[0].split("?")[0]
+#                                              ↑ 查询串被整段丢掉
+```
+
+很多采集端都会丢查询参数。放路径里就不会被丢，`ac=detail&wd=…` 这些参数照常拼在后面。
+
+密钥建议只用字母、数字、下划线、短横线（会做 URL 编码，但 `/` 这类在路径里容易出问题）。
+
+运维页的「CMS 接口地址」会自动带上密钥，直接复制即可。
+
 ## 确认镜像是否更新成功
 
 `/api/stats` 里的 `build` 字段就是镜像构建时的 git commit：
@@ -569,7 +591,7 @@ docker compose up -d --force-recreate
 | `JP_LISTEN_HOST` | `0.0.0.0` | 监听地址 |
 | `JP_LISTEN_PORT` | `8989` | 服务端口 |
 | `JP_TOKEN` | 空 | 非空时界面接口要带 `?token=xxx`（会写进 .strm） |
-| `JP_API_KEY` | 空 | 苹果CMS 接口密码的**首次默认值**，之后以运维页设置为准 |
+| `JP_API_KEY` | 空 | 苹果CMS 接口密码的**首次默认值**，之后以运维页设置为准。非空时地址为 `/api.php/provide/vod/k/<密钥>` |
 | `JP_API_PLAY_FROM` | `wb2strm` | 接口返回的 `vod_play_from` 线路名 |
 | `JP_API_LIMIT` | `20` | CMS 接口每页条数。对接 fnmedia-ext 时它按「页数×本值」估算能浏览多少部，`100` 可覆盖近全库 |
 | `JP_DB` | `data/wb2strm.db` | 数据库路径 |

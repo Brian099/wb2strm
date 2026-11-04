@@ -59,7 +59,10 @@ services:
       JP_DEFAULT_QUALITY: "1080"
       # 访问令牌：留空=不鉴权；非空时界面和接口都要带 ?token=xxx
       JP_TOKEN: ""
-      # 苹果CMS 兼容接口（/api.php/provide/vod）的密钥：留空=公开
+      # 苹果CMS 兼容接口的密钥：留空=公开。
+      # 非空时接口地址变成 /api.php/provide/vod/k/<密钥>（**路径式**，不再支持 ?key=）。
+      # 放路径里是因为很多采集端（如 fnmedia-ext 的分类深翻）会把查询串整段丢掉。
+      # 建议只用字母、数字、下划线、短横线。
       JP_API_KEY: ""
       # 该接口 vod_play_from 显示的线路名
       JP_API_PLAY_FROM: "wb2strm"

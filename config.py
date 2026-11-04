@@ -83,7 +83,7 @@ RELAY = (PLAY_MODE == "relay")   # 兼容旧代码引用
 THREADS = int(os.environ.get("JP_THREADS", "24"))
 
 # ---------------- 苹果CMS 兼容接口 ----------------
-# 非空时，/api.php/provide/vod 需要带 &key=<JP_API_KEY>；留空则公开
+# 非空时接口地址为 /api.php/provide/vod/k/<密钥>（路径式，不用 ?key=）；留空则公开
 API_KEY = os.environ.get("JP_API_KEY", "").strip()
 # vod_play_from 里显示的线路名
 API_PLAY_FROM = os.environ.get("JP_API_PLAY_FROM", "wb2strm")
