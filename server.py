@@ -657,7 +657,7 @@ def api_videos():
     year = request.args.get("year", "")
     q = request.args.get("q", "")
     sub = request.args.get("sub", "")
-    limit = min(int(request.args.get("limit", 60)), 300)
+    limit = min(int(request.args.get("limit", 63)), 300)
     offset = int(request.args.get("offset", 0))
     rows = db.list_videos(type_id=type_id, year=year, keyword=q, cat=cat, sub=sub,
                           limit=limit, offset=offset, slim=True)

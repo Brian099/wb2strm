@@ -3,7 +3,9 @@
   "use strict";
 
   const TOKEN = new URLSearchParams(location.search).get("token") || "";
-  const PAGE_SIZE = 60;
+  // 63 = 7×9：宽屏下 main 有 max-width:1560px，卡片恒为 9 列，
+// 63 张正好 7 行不留空位；窄屏 7 列时 63 也正好 9 行。
+const PAGE_SIZE = 63;
   const state = { cat: "", year: "", q: "", page: 1, total: 0, sub: "" };
   let relayMode = true;   // 由 /api/stats 决定：true 走中继，false 走 302
   let currentVideo = null;
