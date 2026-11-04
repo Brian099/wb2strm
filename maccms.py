@@ -242,9 +242,10 @@ def provide():
 
     # videolist / detail
     pg = max(1, _int(request.values.get("pg"), 1))
-    limit = _int(request.values.get("limit"), 20)
+    _def = max(1, int(getattr(config, "API_LIMIT", 20) or 20))
+    limit = _int(request.values.get("limit"), _def)
     if limit < 1:
-        limit = 20
+        limit = _def
     if limit > _MAX_LIMIT:
         limit = _MAX_LIMIT
     t = _text(request.values.get("t"))

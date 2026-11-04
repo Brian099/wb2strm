@@ -86,7 +86,10 @@ THREADS = int(os.environ.get("JP_THREADS", "24"))
 # 非空时，/api.php/provide/vod 需要带 &key=<JP_API_KEY>；留空则公开
 API_KEY = os.environ.get("JP_API_KEY", "").strip()
 # vod_play_from 里显示的线路名
-API_PLAY_FROM = os.environ.get("JP_API_PLAY_FROM", "wb2strm").strip()
+API_PLAY_FROM = os.environ.get("JP_API_PLAY_FROM", "wb2strm")
+# CMS 接口默认每页条数。标准是 20，但有些客户端（如 fnmedia-ext 的海量分类库）
+# 按「页数 × 20」估算能浏览到多少部，把这里调到 50 就能多覆盖 2.5 倍。
+API_LIMIT = int(os.environ.get("JP_API_LIMIT", "20")).strip()
 
 # ---------------- 导出参数 ----------------
 # 自动导出只写 .strm；NFO / 海报只在手动「重新生成 STRM」时按需勾选
